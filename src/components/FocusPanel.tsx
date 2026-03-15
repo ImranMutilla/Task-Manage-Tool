@@ -16,7 +16,9 @@ const FocusPanel = ({ tasks }: FocusPanelProps) => {
         {tasks.map((task) => (
           <div key={task.id} className="rounded-xl bg-slate-50 px-3 py-2">
             <p className="truncate text-sm font-medium text-slate-800">{task.title}</p>
-            <p className="mt-1 text-xs text-slate-500">{task.projectName} · {formatTaskDateTime(task.dueDateTime)}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              {task.projectName} · {formatTaskDateTime(task.dueDateTime, task.dueHasTime)}
+            </p>
             <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-[11px] ${priorityMeta[task.priority].className}`}>
               {priorityMeta[task.priority].label}
             </span>

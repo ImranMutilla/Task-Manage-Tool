@@ -8,9 +8,10 @@ interface TaskListProps {
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onDuplicate: (task: Task) => void;
+  onOpenDetail: (task: Task) => void;
 }
 
-const TaskList = ({ tasks, emptyMessage, onToggleDone, onEdit, onDelete, onDuplicate }: TaskListProps) => {
+const TaskList = ({ tasks, emptyMessage, onToggleDone, onEdit, onDelete, onDuplicate, onOpenDetail }: TaskListProps) => {
   if (!tasks.length) {
     return (
       <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
@@ -29,6 +30,7 @@ const TaskList = ({ tasks, emptyMessage, onToggleDone, onEdit, onDelete, onDupli
           onEdit={onEdit}
           onDelete={onDelete}
           onDuplicate={onDuplicate}
+          onOpenDetail={onOpenDetail}
         />
       ))}
     </section>

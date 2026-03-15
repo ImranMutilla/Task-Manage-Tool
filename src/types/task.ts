@@ -1,5 +1,6 @@
 export type TaskStatus = 'todo' | 'in-progress' | 'done';
 export type TaskPriority = 'p1' | 'p2' | 'p3' | 'p4';
+export type TaskRepeat = 'none' | 'daily' | 'weekday' | 'weekly' | 'monthly';
 
 export interface Project {
   id: string;
@@ -20,6 +21,7 @@ export interface Task {
   status: TaskStatus;
   priority: TaskPriority;
   dueDateTime?: string;
+  dueHasTime?: boolean;
   projectId: string;
   projectName: string;
   tags: string[];
@@ -28,6 +30,7 @@ export interface Task {
   completedAt?: string;
   isInInbox: boolean;
   isInToday: boolean;
+  repeat: TaskRepeat;
   dueDate?: string;
 }
 
@@ -68,4 +71,5 @@ export interface TaskInput {
   projectId?: string;
   tags: string[];
   isInToday: boolean;
+  repeat: TaskRepeat;
 }

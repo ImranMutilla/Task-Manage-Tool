@@ -5,6 +5,10 @@ import TaskFiltersBar from './components/TaskFilters';
 import TaskList from './components/TaskList';
 import TaskModal from './components/TaskModal';
 import TopBar from './components/TopBar';
+import TodayView from './components/TodayView';
+import UpcomingView from './components/UpcomingView';
+import TaskDetailPanel from './components/TaskDetailPanel';
+import { getNextRepeatDue, startOfDay } from './utils/dateTime';
 import { loadProjects, loadTasks, saveProjects, saveTasks } from './services/localStorage';
 import { ActiveView, Project, Task, TaskInput } from './types/task';
 import {
@@ -15,13 +19,15 @@ import {
   DEFAULT_PROJECTS,
   getFocusTasks,
   getVisibleTasks,
-  splitUpcomingGroups,
+  groupUpcomingByDate,
+  splitTodaySections,
 } from './utils/taskUtils';
 
 interface ModalState {
   open: boolean;
   mode: 'create' | 'edit';
   task?: Task;
+  presetDate?: string;
 }
 
 const App = () => {
@@ -31,6 +37,8 @@ const App = () => {
   const [filters, setFilters] = useState(baseFilters);
   const [modalState, setModalState] = useState<ModalState>({ open: false, mode: 'create' });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | undefined>();
+  const [upcomingWeekOffset, setUpcomingWeekOffset] = useState(0);
 
   useEffect(() => saveTasks(tasks), [tasks]);
   useEffect(() => saveProjects(projects), [projects]);
@@ -41,17 +49,18 @@ const App = () => {
   const tags = useMemo(() => collectTags(tasks), [tasks]);
   const visibleTasks = useMemo(() => getVisibleTasks(tasks, filters, activeView), [tasks, filters, activeView]);
   const focusTasks = useMemo(() => getFocusTasks(tasks), [tasks]);
+  const todaySections = useMemo(() => splitTodaySections(tasks), [tasks]);
   const countProject = useMemo(() => countsByProject(tasks), [tasks]);
 
   const counts = useMemo(
     () => ({
       inbox: tasks.filter((task) => task.projectId === 'inbox' && task.status !== 'done').length,
-      today: tasks.filter((task) => task.status !== 'done' && task.isInToday).length,
+      today: todaySections.overdue.length + todaySections.dueToday.length + todaySections.flexible.length,
       upcoming: tasks.filter((task) => task.status !== 'done' && task.dueDateTime).length,
       completed: tasks.filter((task) => task.status === 'done').length,
       project: countProject,
     }),
-    [tasks, countProject],
+    [tasks, todaySections, countProject],
   );
 
   const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
@@ -66,19 +75,39 @@ const App = () => {
     if (!modalState.task) return;
     const next = buildTaskFromInput(input, { id: modalState.task.id, createdAt: modalState.task.createdAt }, projectMap);
     setTasks((prev) => prev.map((task) => (task.id === modalState.task?.id ? next : task)));
+    setSelectedTask(next);
     closeModal();
   };
 
   const toggleDone = (task: Task) => {
     const now = new Date().toISOString();
     const done = task.status === 'done';
-    setTasks((prev) =>
-      prev.map((item) =>
-        item.id === task.id
-          ? { ...item, status: done ? 'todo' : 'done', completedAt: done ? undefined : now, updatedAt: now }
-          : item,
-      ),
-    );
+    setTasks((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id !== task.id) return item;
+        return {
+          ...item,
+          status: (done ? 'todo' : 'done') as Task['status'],
+          completedAt: done ? undefined : now,
+          updatedAt: now,
+        };
+      });
+
+      if (!done && task.repeat !== 'none' && task.dueDateTime) {
+        const repeatDue = getNextRepeatDue(task.dueDateTime, task.repeat);
+        updated.unshift({
+          ...task,
+          id: crypto.randomUUID(),
+          status: 'todo',
+          completedAt: undefined,
+          createdAt: now,
+          updatedAt: now,
+          dueDateTime: repeatDue,
+        });
+      }
+
+      return updated;
+    });
   };
 
   const deleteTask = (id: string) => setTasks((prev) => prev.filter((task) => task.id !== id));
@@ -87,18 +116,38 @@ const App = () => {
     setTasks((prev) => [{ ...task, id: crypto.randomUUID(), createdAt: now, updatedAt: now, completedAt: undefined, status: 'todo' }, ...prev]);
   };
 
+  const openCreate = (presetDate?: string, today = false) => {
+    setModalState({ open: true, mode: 'create', presetDate });
+    if (today) {
+      setTimeout(() => {
+        // noop for UX pacing
+      }, 0);
+    }
+  };
+
   const subtitle =
     activeView.type === 'inbox'
-      ? 'No tasks in Inbox. Capture something to get started.'
+      ? 'Capture tasks quickly and organize later.'
       : activeView.type === 'today'
-        ? 'Nothing due today? Enjoy the calm.'
+        ? 'Plan execution by overdue, due today, and flexible tasks.'
         : activeView.type === 'upcoming'
-          ? 'Plan what is next by date and time.'
+          ? 'Preview and schedule the next days clearly.'
           : activeView.type === 'completed'
-            ? 'Review completed tasks and restore if needed.'
+            ? 'Review completed tasks and recurring outcomes.'
             : `Filtered view · ${activeView.label}`;
 
-  const upcomingGroups = activeView.type === 'upcoming' ? splitUpcomingGroups(visibleTasks) : [];
+  const upcomingGroups = useMemo(() => groupUpcomingByDate(visibleTasks, upcomingWeekOffset), [visibleTasks, upcomingWeekOffset]);
+  const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
+    new Date(startOfDay(new Date()).getTime() + upcomingWeekOffset * 7 * 24 * 60 * 60 * 1000),
+  );
+
+  const sharedListProps = {
+    onToggleDone: toggleDone,
+    onEdit: (task: Task) => setModalState({ open: true, mode: 'edit', task }),
+    onDelete: deleteTask,
+    onDuplicate: duplicateTask,
+    onOpenDetail: (task: Task) => setSelectedTask(task),
+  };
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-slate-800">
@@ -124,28 +173,32 @@ const App = () => {
             {(activeView.type === 'today' || activeView.type === 'inbox') && <FocusPanel tasks={focusTasks} />}
             <TaskFiltersBar filters={filters} projects={projects} tags={tags} onChange={setFilters} />
 
-            {activeView.type === 'upcoming' ? (
-              <div className="space-y-4">
-                {upcomingGroups.length === 0 && (
-                  <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
-                    No upcoming tasks. Add one from the task composer.
-                  </section>
-                )}
-                {upcomingGroups.map((group) => (
-                  <div key={group.label}>
-                    <h3 className="mb-2 px-1 text-sm font-medium text-slate-600">{group.label}</h3>
-                    <TaskList tasks={group.items} emptyMessage="" onToggleDone={toggleDone} onEdit={(task) => setModalState({ open: true, mode: 'edit', task })} onDelete={deleteTask} onDuplicate={duplicateTask} />
-                  </div>
-                ))}
-              </div>
+            {activeView.type === 'today' ? (
+              <TodayView {...todaySections} {...sharedListProps} onQuickAddToday={() => openCreate(new Date().toISOString().slice(0, 10), true)} />
+            ) : activeView.type === 'upcoming' ? (
+              <UpcomingView
+                groups={upcomingGroups}
+                monthLabel={monthLabel}
+                onPrevWeek={() => setUpcomingWeekOffset((prev) => prev - 1)}
+                onNextWeek={() => setUpcomingWeekOffset((prev) => prev + 1)}
+                onGoToday={() => setUpcomingWeekOffset(0)}
+                onAddByDate={(date) => openCreate(date)}
+                {...sharedListProps}
+              />
             ) : (
-              <TaskList tasks={visibleTasks} emptyMessage="No tasks in this view. Add a task to get started." onToggleDone={toggleDone} onEdit={(task) => setModalState({ open: true, mode: 'edit', task })} onDelete={deleteTask} onDuplicate={duplicateTask} />
+              <>
+                <TaskList tasks={visibleTasks} emptyMessage={activeView.type === 'inbox' ? 'No tasks in Inbox. Capture something to get started.' : activeView.type === 'completed' ? 'No completed tasks yet.' : 'No tasks in this view.'} {...sharedListProps} />
+                {activeView.type === 'inbox' && (
+                  <button onClick={() => openCreate()} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600">+ Add task</button>
+                )}
+              </>
             )}
           </main>
         </div>
       </div>
 
-      <TaskModal open={modalState.open} mode={modalState.mode} projects={projects} initialTask={modalState.task} onSubmit={modalState.mode === 'create' ? onCreate : onUpdate} onClose={closeModal} />
+      <TaskModal open={modalState.open} mode={modalState.mode} projects={projects} initialTask={modalState.task} presetDate={modalState.presetDate} onSubmit={modalState.mode === 'create' ? onCreate : onUpdate} onClose={closeModal} />
+      <TaskDetailPanel task={selectedTask} onClose={() => setSelectedTask(undefined)} onEdit={(task) => setModalState({ open: true, mode: 'edit', task })} />
     </div>
   );
 };

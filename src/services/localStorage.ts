@@ -1,4 +1,4 @@
-import { Project, Task, TaskPriority, TaskStatus } from '../types/task';
+import { Project, Task, TaskPriority, TaskRepeat, TaskStatus } from '../types/task';
 import { DEFAULT_PROJECTS } from '../utils/taskUtils';
 
 const TASKS_KEY = 'smart_task_assistant_tasks';
@@ -12,11 +12,17 @@ const mapLegacyPriority = (priority?: string): TaskPriority => {
   return 'p3';
 };
 
+const mapRepeat = (repeat?: string): TaskRepeat => {
+  if (repeat === 'daily' || repeat === 'weekday' || repeat === 'weekly' || repeat === 'monthly') return repeat;
+  return 'none';
+};
+
 const normalizeTask = (raw: unknown): Task | null => {
   if (!raw || typeof raw !== 'object') return null;
-  const task = raw as Partial<Task> & { dueDate?: string; priority?: string; status?: string };
+  const task = raw as Partial<Task> & { dueDate?: string; priority?: string; status?: string; repeat?: string };
   if (!task.id || !task.title) return null;
 
+  const fromLegacyDate = Boolean(!task.dueDateTime && task.dueDate);
   const dueDateTime = task.dueDateTime ?? (task.dueDate ? `${task.dueDate}T09:00:00.000Z` : undefined);
   const projectId = task.projectId ?? (task.isInInbox === false ? 'personal' : 'inbox');
   const projectName = task.projectName ?? DEFAULT_PROJECTS.find((project) => project.id === projectId)?.name ?? 'Inbox';
@@ -24,7 +30,6 @@ const normalizeTask = (raw: unknown): Task | null => {
     task.status === 'todo' || task.status === 'in-progress' || task.status === 'done' ? task.status : 'todo';
 
   const updatedAt = task.updatedAt ? String(task.updatedAt) : new Date().toISOString();
-  const completedAt = status === 'done' ? task.completedAt ?? updatedAt : undefined;
 
   return {
     id: String(task.id),
@@ -33,14 +38,16 @@ const normalizeTask = (raw: unknown): Task | null => {
     status,
     priority: mapLegacyPriority(task.priority),
     dueDateTime: dueDateTime ? String(dueDateTime) : undefined,
+    dueHasTime: task.dueHasTime ?? (fromLegacyDate ? false : Boolean(dueDateTime)),
     projectId,
     projectName,
     tags: Array.isArray(task.tags) ? task.tags.map(String) : [],
     createdAt: task.createdAt ? String(task.createdAt) : updatedAt,
     updatedAt,
-    completedAt: completedAt ? String(completedAt) : undefined,
+    completedAt: status === 'done' ? String(task.completedAt ?? updatedAt) : undefined,
     isInInbox: projectId === 'inbox',
     isInToday: Boolean(task.isInToday),
+    repeat: mapRepeat(task.repeat),
   };
 };
 
@@ -48,10 +55,8 @@ export const loadTasks = (): Task[] => {
   try {
     const raw = localStorage.getItem(TASKS_KEY);
     if (!raw) return [];
-
     const parsed = JSON.parse(raw) as unknown[];
     if (!Array.isArray(parsed)) return [];
-
     return parsed.map((item) => normalizeTask(item)).filter((task): task is Task => task !== null);
   } catch {
     return [];
@@ -66,11 +71,7 @@ const normalizeProject = (raw: unknown): Project | null => {
   if (!raw || typeof raw !== 'object') return null;
   const project = raw as Partial<Project>;
   if (!project.id || !project.name) return null;
-  return {
-    id: String(project.id),
-    name: String(project.name),
-    isSystem: Boolean(project.isSystem),
-  };
+  return { id: String(project.id), name: String(project.name), isSystem: Boolean(project.isSystem) };
 };
 
 export const loadProjects = (): Project[] => {
@@ -79,15 +80,9 @@ export const loadProjects = (): Project[] => {
     if (!raw) return DEFAULT_PROJECTS;
     const parsed = JSON.parse(raw) as unknown[];
     if (!Array.isArray(parsed)) return DEFAULT_PROJECTS;
-
-    const projects = parsed
-      .map((item) => normalizeProject(item))
-      .filter((project): project is Project => project !== null);
-
+    const projects = parsed.map((item) => normalizeProject(item)).filter((project): project is Project => project !== null);
     const map = new Map(projects.map((project) => [project.id, project]));
-    for (const defaultProject of DEFAULT_PROJECTS) {
-      if (!map.has(defaultProject.id)) map.set(defaultProject.id, defaultProject);
-    }
+    for (const defaultProject of DEFAULT_PROJECTS) if (!map.has(defaultProject.id)) map.set(defaultProject.id, defaultProject);
     return [...map.values()];
   } catch {
     return DEFAULT_PROJECTS;
