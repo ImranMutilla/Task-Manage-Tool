@@ -13,15 +13,11 @@ interface TaskListProps {
 
 const TaskList = ({ tasks, emptyMessage, onToggleDone, onEdit, onDelete, onDuplicate, onOpenDetail }: TaskListProps) => {
   if (!tasks.length) {
-    return (
-      <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
-        {emptyMessage}
-      </section>
-    );
+    return <p className="px-2 py-2 text-sm text-slate-400">{emptyMessage}</p>;
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white">
+    <section className="space-y-0.5">
       {tasks.map((task) => (
         <TaskItem
           key={task.id}

@@ -62,6 +62,10 @@ const App = () => {
     [baseCounts, countProject],
   );
 
+
+  const inboxCount = counts.inbox;
+  const todayCount = counts.today;
+  const upcomingCount = counts.upcoming;
   const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
   const closeModal = () => setModalState({ open: false, mode: 'create' });
 
@@ -106,13 +110,19 @@ const App = () => {
 
   const subtitle =
     activeView.type === 'inbox'
-      ? 'Inbox: tasks not yet organized into a formal project.'
+      ? inboxCount > 0
+        ? `${inboxCount} task${inboxCount > 1 ? 's' : ''} waiting to be organized`
+        : 'Capture first, organize later.'
       : activeView.type === 'today'
-        ? 'Today: due today or pinned for today execution.'
+        ? todayCount > 0
+          ? `${todayCount} task${todayCount > 1 ? 's' : ''} lined up for today`
+          : 'Nothing due today. Enjoy the calm.'
         : activeView.type === 'upcoming'
-          ? 'Upcoming: dated tasks from today to the next 6 days.'
+          ? upcomingCount > 0
+            ? `${upcomingCount} dated task${upcomingCount > 1 ? 's' : ''} in the next 7 days`
+            : 'Plan the next few days clearly.'
           : activeView.type === 'completed'
-            ? 'Completed: finished tasks sorted by completion time.'
+            ? 'Review your recently finished tasks.'
             : activeView.type === 'tag'
               ? `Tasks tagged with ${activeView.id}`
               : `Project view · ${activeView.label}`;
@@ -158,9 +168,9 @@ const App = () => {
         <div className="flex min-w-0 flex-1 flex-col">
           <TopBar title={activeView.label} subtitle={subtitle} onNewTask={() => setModalState({ open: true, mode: 'create' })} onOpenSidebar={() => setMobileSidebarOpen(true)} />
 
-          <main className="mx-auto w-full max-w-5xl space-y-3 p-4 md:p-6">
+          <main className="mx-auto w-full max-w-5xl space-y-4 p-4 md:p-6">
             {activeView.type === 'tag' && tagStats && (
-              <section className="rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
+              <section className="rounded-xl bg-white/80 p-3 text-sm text-slate-600">
                 #{activeView.id} · Tasks tagged with {activeView.id} · Uncompleted {tagStats.uncompleted} · Due today {tagStats.today}
               </section>
             )}
