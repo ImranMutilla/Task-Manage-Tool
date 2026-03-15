@@ -31,6 +31,7 @@ const TaskFiltersBar = ({ filters, projects, tags, config, onChange }: TaskFilte
       <div className="grid grid-cols-1 gap-2 md:grid-cols-7">
         {config.visibleFilters.includes('search') && (
           <input
+            id="task-search-input"
             value={filters.search}
             onChange={(event) => onChange({ ...filters, search: event.target.value })}
             placeholder={config.searchPlaceholder}

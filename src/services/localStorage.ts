@@ -47,6 +47,8 @@ const normalizeTask = (raw: unknown): Task | null => {
     completedAt: status === 'done' ? String(task.completedAt ?? updatedAt) : undefined,
     todayPinned: Boolean(task.todayPinned ?? task.isInToday),
     repeat: mapRepeat(task.repeat),
+    section: task.section ? String(task.section) : undefined,
+    parentTaskId: task.parentTaskId ? String(task.parentTaskId) : undefined,
   };
 };
 

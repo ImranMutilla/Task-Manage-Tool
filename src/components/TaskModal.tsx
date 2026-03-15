@@ -9,11 +9,12 @@ interface TaskModalProps {
   presetDate?: string;
   presetProjectId?: string;
   presetTodayPinned?: boolean;
+  knownTags: string[];
   onSubmit: (payload: TaskInput) => void;
   onClose: () => void;
 }
 
-const TaskModal = ({ open, mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, onSubmit, onClose }: TaskModalProps) => {
+const TaskModal = ({ open, mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, knownTags, onSubmit, onClose }: TaskModalProps) => {
   if (!open) return null;
 
   return (
@@ -26,6 +27,7 @@ const TaskModal = ({ open, mode, projects, initialTask, presetDate, presetProjec
           presetDate={presetDate}
           presetProjectId={presetProjectId}
           presetTodayPinned={presetTodayPinned}
+          knownTags={knownTags}
           onSubmit={onSubmit}
           onCancel={onClose}
         />

@@ -1,4 +1,4 @@
-import { ActiveView, Project, TagOption, Task, TaskFilters, TaskInput, TaskPriority, TaskSortBy, TaskStatus, TaskSuggestion, ViewKey } from '../types/task';
+import { ActiveView, Project, TagOption, Task, TaskFilters, TaskInput, TaskPriority, TaskRepeat, TaskSortBy, TaskStatus, TaskSuggestion, ViewKey } from '../types/task';
 import { formatDateGroupTitle, isToday, startOfDay, toISODateTime } from './dateTime';
 
 export const DEFAULT_PROJECTS: Project[] = [
@@ -33,6 +33,72 @@ export const priorityMeta: Record<TaskPriority, { label: string; short: string; 
 };
 
 export const statusLabel: Record<TaskStatus, string> = { todo: '待办', 'in-progress': '进行中', done: '已完成' };
+
+
+export interface QuickParseResult {
+  cleanTitle: string;
+  dueDate?: string;
+  time?: string;
+  repeat?: TaskRepeat;
+  tags: string[];
+  projectId?: string;
+}
+
+export const parseQuickTaskInput = (title: string, projects: Project[], knownTags: string[]): QuickParseResult => {
+  const result: QuickParseResult = { cleanTitle: title.trim(), tags: [] };
+  if (!result.cleanTitle) return result;
+
+  let working = result.cleanTitle;
+  const lower = working.toLowerCase();
+
+  const tomorrowTime = lower.match(/tomorrow\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+  if (tomorrowTime) {
+    const hourRaw = Number(tomorrowTime[1]);
+    const minute = tomorrowTime[2] ?? '00';
+    const meridiem = tomorrowTime[3].toLowerCase();
+    const hour24 = meridiem === 'pm' && hourRaw < 12 ? hourRaw + 12 : meridiem === 'am' && hourRaw === 12 ? 0 : hourRaw;
+    const tomorrow = startOfDay(new Date());
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    result.dueDate = tomorrow.toISOString().slice(0, 10);
+    result.time = `${String(hour24).padStart(2, '0')}:${minute}`;
+    working = working.replace(tomorrowTime[0], '').trim();
+  } else if (/tomorrow/i.test(lower)) {
+    const tomorrow = startOfDay(new Date());
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    result.dueDate = tomorrow.toISOString().slice(0, 10);
+    working = working.replace(/tomorrow/ig, '').trim();
+  }
+
+  if (/every\s+monday/i.test(working)) {
+    result.repeat = 'weekly';
+    working = working.replace(/every\s+monday/ig, '').trim();
+  }
+
+  const projectToken = working.match(/#([\w-]+)/);
+  if (projectToken) {
+    const name = projectToken[1].toLowerCase();
+    const project = projects.find((item) => item.name.toLowerCase() === name || item.id.toLowerCase() === name);
+    if (project) {
+      result.projectId = project.id;
+      working = working.replace(projectToken[0], '').trim();
+    }
+  }
+
+  const tagTokens = [...working.matchAll(/@([\w-]+)/g)];
+  if (tagTokens.length) {
+    const tagSet = new Set(knownTags.map((tag) => tag.toLowerCase()));
+    for (const token of tagTokens) {
+      const candidate = token[1];
+      const matched = knownTags.find((tag) => tag.toLowerCase() === candidate.toLowerCase());
+      if (matched) result.tags.push(matched);
+      else if (!tagSet.has(candidate.toLowerCase())) result.tags.push(candidate);
+    }
+    working = working.replace(/@[\w-]+/g, '').trim();
+  }
+
+  result.cleanTitle = working.replace(/\s{2,}/g, ' ').trim() || title.trim();
+  return result;
+};
 
 export const getTaskSuggestion = (title: string): TaskSuggestion | null => {
   const text = title.trim().toLowerCase();
@@ -237,6 +303,8 @@ export const buildTaskFromInput = (input: TaskInput, existing: Pick<Task, 'id' |
     completedAt: input.status === 'done' ? now : undefined,
     todayPinned: input.todayPinned,
     repeat: input.repeat,
+    section: input.section,
+    parentTaskId: input.parentTaskId,
   };
 };
 

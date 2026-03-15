@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Project, Task, TaskInput, TaskPriority, TaskRepeat } from '../types/task';
 import { fromISOToDate, fromISOToTimeValue } from '../utils/dateTime';
-import { DEFAULT_TAGS, getTaskSuggestion, priorityMeta } from '../utils/taskUtils';
+import { DEFAULT_TAGS, getTaskSuggestion, parseQuickTaskInput, priorityMeta } from '../utils/taskUtils';
 import DatePickerQuick from './DatePickerQuick';
 import PriorityPicker from './PriorityPicker';
 import ProjectPicker from './ProjectPicker';
@@ -15,11 +15,12 @@ interface TaskComposerProps {
   presetDate?: string;
   presetProjectId?: string;
   presetTodayPinned?: boolean;
+  knownTags: string[];
   onSubmit: (payload: TaskInput) => void;
   onCancel: () => void;
 }
 
-const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, onSubmit, onCancel }: TaskComposerProps) => {
+const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, knownTags, onSubmit, onCancel }: TaskComposerProps) => {
   const [title, setTitle] = useState(initialTask?.title ?? '');
   const [description, setDescription] = useState(initialTask?.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(initialTask?.priority ?? 'p3');
@@ -52,17 +53,20 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!title.trim()) return;
+
+    const quick = parseQuickTaskInput(title, projects, knownTags);
+
     onSubmit({
-      title: title.trim(),
+      title: quick.cleanTitle,
       description: description.trim() || undefined,
       priority,
       status,
-      dueDate: dueDate || undefined,
-      time: timeValue || undefined,
-      projectId,
-      tags,
+      dueDate: dueDate || quick.dueDate || undefined,
+      time: timeValue || quick.time || undefined,
+      projectId: projectId === 'inbox' ? quick.projectId ?? projectId : projectId,
+      tags: [...new Set([...tags, ...quick.tags])],
       todayPinned,
-      repeat,
+      repeat: quick.repeat ?? repeat,
     });
   };
 
@@ -75,6 +79,7 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId
 
       <div className="space-y-3">
         <input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Task name" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" required />
+        <p className="-mt-1 text-[11px] text-slate-400">Tip: try "tomorrow 4pm", "every Monday", "@Urgent", or "#Work" in task name.</p>
         <textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Description (optional)" className="min-h-20 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-600" />
 
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2">

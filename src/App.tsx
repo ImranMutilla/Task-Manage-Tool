@@ -35,6 +35,23 @@ interface ModalState {
   presetTodayPinned?: boolean;
 }
 
+
+const getCompletedGroupLabel = (value?: string): string => {
+  if (!value) return 'Earlier';
+  const date = new Date(value);
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startYesterday = new Date(startToday);
+  startYesterday.setDate(startYesterday.getDate() - 1);
+  const startWeek = new Date(startToday);
+  startWeek.setDate(startWeek.getDate() - 7);
+
+  if (date >= startToday) return 'Today';
+  if (date >= startYesterday) return 'Yesterday';
+  if (date >= startWeek) return 'Earlier this week';
+  return 'Earlier';
+};
+
 const App = () => {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [projects, setProjects] = useState<Project[]>(() => loadProjects());
@@ -78,6 +95,29 @@ const App = () => {
   }, [toolbarConfig]);
 
   const closeModal = () => setModalState({ open: false, mode: 'create' });
+
+  useEffect(() => {
+    const onShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const isTyping = target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.isContentEditable;
+      if (isTyping) return;
+
+      if (event.key.toLowerCase() === 'q' || event.key.toLowerCase() === 'n') {
+        event.preventDefault();
+        openCreate();
+      }
+
+      if (event.key === '/' || event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        const searchInput = document.getElementById('task-search-input') as HTMLInputElement | null;
+        searchInput?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', onShortcut);
+    return () => window.removeEventListener('keydown', onShortcut);
+  }, [activeView]);
+
 
   const onCreate = (input: TaskInput) => {
     setTasks((prev) => [buildTaskFromInput(input, null, projectMap), ...prev]);
@@ -180,6 +220,17 @@ const App = () => {
         }
       : null;
 
+  const completedGroups = useMemo(() => {
+    if (activeView.type !== 'completed') return [];
+    const groups = new Map<string, Task[]>();
+    for (const task of visibleTasks) {
+      const label = getCompletedGroupLabel(task.completedAt);
+      if (!groups.has(label)) groups.set(label, []);
+      groups.get(label)!.push(task);
+    }
+    return [...groups.entries()];
+  }, [activeView.type, visibleTasks]);
+
   const projectEmptyState =
     activeView.type === 'project' && visibleTasks.length === 0
       ? {
@@ -249,8 +300,28 @@ const App = () => {
                       {projectEmptyState.button}
                     </button>
                   </section>
+                ) : activeView.type === 'completed' ? (
+                  completedGroups.length ? (
+                    <div className="space-y-3">
+                      {completedGroups.map(([label, groupTasks]) => (
+                        <section key={label} className="space-y-1">
+                          <h3 className="px-1 text-sm font-medium text-slate-600">{label}</h3>
+                          <TaskList tasks={groupTasks} emptyMessage="No completed tasks yet." {...sharedListProps} />
+                        </section>
+                      ))}
+                    </div>
+                  ) : (
+                    <TaskList tasks={[]} emptyMessage="No completed tasks yet." {...sharedListProps} />
+                  )
                 ) : (
-                  <TaskList tasks={visibleTasks} emptyMessage={activeView.type === 'inbox' ? 'No tasks in Inbox. Capture something to get started.' : activeView.type === 'completed' ? 'No completed tasks yet.' : 'No tasks in this view.'} showOrganizeActions={activeView.type === 'inbox'} {...sharedListProps} />
+                  <>
+                    {activeView.type === 'project' && (
+                      <section className="rounded-xl bg-white/70 px-3 py-2 text-xs text-slate-500">
+                        {visibleTasks.length} open task{visibleTasks.length === 1 ? '' : 's'} in {activeView.label}
+                      </section>
+                    )}
+                    <TaskList tasks={visibleTasks} emptyMessage={activeView.type === 'inbox' ? 'No tasks in Inbox. Capture something to get started.' : 'No tasks in this view.'} showOrganizeActions={activeView.type === 'inbox'} {...sharedListProps} />
+                  </>
                 )}
               </>
             )}
@@ -266,6 +337,7 @@ const App = () => {
         presetDate={modalState.presetDate}
         presetProjectId={modalState.presetProjectId}
         presetTodayPinned={modalState.presetTodayPinned}
+        knownTags={tags}
         onSubmit={modalState.mode === 'create' ? onCreate : onUpdate}
         onClose={closeModal}
       />

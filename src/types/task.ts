@@ -30,6 +30,8 @@ export interface Task {
   completedAt?: string;
   todayPinned?: boolean;
   repeat: TaskRepeat;
+  section?: string;
+  parentTaskId?: string;
   dueDate?: string;
   isInToday?: boolean;
 }
@@ -72,4 +74,6 @@ export interface TaskInput {
   tags: string[];
   todayPinned: boolean;
   repeat: TaskRepeat;
+  section?: string;
+  parentTaskId?: string;
 }

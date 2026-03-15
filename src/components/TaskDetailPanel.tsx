@@ -29,6 +29,8 @@ const TaskDetailPanel = ({ task, onClose, onEdit }: TaskDetailPanelProps) => {
           {task.tags.map((tag) => <span key={tag} className={`rounded-full px-2 py-1 text-xs ${tagColorMap[tag] ?? 'bg-slate-100 text-slate-600'}`}>{tag}</span>)}
         </div>
         <div><p className="text-xs text-slate-400">Status</p><p>{task.status}</p></div>
+        <div><p className="text-xs text-slate-400">Section</p><p>{task.section || '—'}</p></div>
+        <div><p className="text-xs text-slate-400">Subtask of</p><p>{task.parentTaskId || '—'}</p></div>
         <div><p className="text-xs text-slate-400">Created</p><p>{new Date(task.createdAt).toLocaleString()}</p></div>
         <div><p className="text-xs text-slate-400">Updated</p><p>{new Date(task.updatedAt).toLocaleString()}</p></div>
       </div>
