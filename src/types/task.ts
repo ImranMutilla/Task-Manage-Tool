@@ -40,7 +40,7 @@ export interface TaskSuggestion {
   splitIdeas: string[];
 }
 
-export type TaskSortBy = 'dueDateTime' | 'createdAt' | 'priority' | 'updatedAt';
+export type TaskSortBy = 'dueDateTime' | 'createdAt' | 'priority' | 'updatedAt' | 'completedAt';
 export type DueState = 'all' | 'upcoming' | 'overdue' | 'no-date';
 
 export interface TaskFilters {

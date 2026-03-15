@@ -16,11 +16,13 @@ import {
   collectTags,
   countsByProject,
   DEFAULT_PROJECTS,
+  getToolbarConfig,
   getUpNextTask,
   getViewCounts,
   getVisibleTasks,
   getUpcomingWindowTasks,
   groupUpcomingByDate,
+  sanitizeFiltersForView,
   splitTodaySections,
 } from './utils/taskUtils';
 
@@ -48,7 +50,9 @@ const App = () => {
   }, [projects]);
 
   const tags = useMemo(() => collectTags(tasks), [tasks]);
-  const visibleTasks = useMemo(() => getVisibleTasks(tasks, filters, activeView), [tasks, filters, activeView]);
+  const toolbarConfig = useMemo(() => getToolbarConfig(activeView), [activeView]);
+  const effectiveFilters = useMemo(() => sanitizeFiltersForView(filters, toolbarConfig), [filters, toolbarConfig]);
+  const visibleTasks = useMemo(() => getVisibleTasks(tasks, effectiveFilters, activeView), [tasks, effectiveFilters, activeView]);
   const todaySections = useMemo(() => splitTodaySections(tasks), [tasks]);
   const upNext = useMemo(() => getUpNextTask(tasks), [tasks]);
   const countProject = useMemo(() => countsByProject(tasks), [tasks]);
@@ -67,6 +71,10 @@ const App = () => {
   const todayCount = counts.today;
   const upcomingCount = counts.upcoming;
   const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+
+  useEffect(() => {
+    setFilters((prev) => sanitizeFiltersForView(prev, toolbarConfig));
+  }, [toolbarConfig]);
   const closeModal = () => setModalState({ open: false, mode: 'create' });
 
   const onCreate = (input: TaskInput) => {
@@ -127,7 +135,7 @@ const App = () => {
               ? `Tasks tagged with ${activeView.id}`
               : `Project view · ${activeView.label}`;
 
-  const upcomingWindowTasks = useMemo(() => getUpcomingWindowTasks(tasks, filters, upcomingWeekOffset), [tasks, filters, upcomingWeekOffset]);
+  const upcomingWindowTasks = useMemo(() => getUpcomingWindowTasks(tasks, effectiveFilters, upcomingWeekOffset), [tasks, effectiveFilters, upcomingWeekOffset]);
   const upcomingGroups = useMemo(() => groupUpcomingByDate(upcomingWindowTasks, upcomingWeekOffset), [upcomingWindowTasks, upcomingWeekOffset]);
   const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(startOfDay(new Date()).getTime() + upcomingWeekOffset * 7 * 24 * 60 * 60 * 1000));
 
@@ -175,7 +183,7 @@ const App = () => {
               </section>
             )}
 
-            <TaskFiltersBar filters={filters} projects={projects} tags={tags} onChange={setFilters} />
+            <TaskFiltersBar filters={effectiveFilters} projects={projects} tags={tags} config={toolbarConfig} onChange={setFilters} />
 
             {activeView.type === 'today' ? (
               <TodayView {...todaySections} doneToday={doneToday} upNext={upNext} {...sharedListProps} onQuickAddToday={() => openCreate(new Date().toISOString().slice(0, 10))} />

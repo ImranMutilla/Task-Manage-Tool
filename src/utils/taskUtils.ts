@@ -1,4 +1,4 @@
-import { ActiveView, Project, TagOption, Task, TaskFilters, TaskInput, TaskPriority, TaskStatus, TaskSuggestion } from '../types/task';
+import { ActiveView, Project, TagOption, Task, TaskFilters, TaskInput, TaskPriority, TaskSortBy, TaskStatus, TaskSuggestion, ViewKey } from '../types/task';
 import { formatDateGroupTitle, isToday, startOfDay, toISODateTime } from './dateTime';
 
 export const DEFAULT_PROJECTS: Project[] = [
@@ -89,12 +89,11 @@ const matchesFilters = (task: Task, filters: TaskFilters): boolean => {
   return true;
 };
 
-const sortByMode = (a: Task, b: Task, sortBy: TaskFilters['sortBy'], activeView: ActiveView): number => {
-  if (activeView.type === 'completed') return new Date(b.completedAt ?? b.updatedAt).getTime() - new Date(a.completedAt ?? a.updatedAt).getTime();
-
+const sortByMode = (a: Task, b: Task, sortBy: TaskFilters['sortBy'], _activeView: ActiveView): number => {
   if (sortBy === 'createdAt') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   if (sortBy === 'updatedAt') return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   if (sortBy === 'priority') return priorityWeight[b.priority] - priorityWeight[a.priority];
+  if (sortBy === 'completedAt') return new Date(b.completedAt ?? b.updatedAt).getTime() - new Date(a.completedAt ?? a.updatedAt).getTime();
 
   const aDue = a.dueDateTime ? new Date(a.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
   const bDue = b.dueDateTime ? new Date(b.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
@@ -141,6 +140,71 @@ export const countsByProject = (tasks: Task[]): Record<string, number> =>
     if (task.status !== 'done') acc[task.projectId] = (acc[task.projectId] ?? 0) + 1;
     return acc;
   }, {});
+
+
+export interface ToolbarConfig {
+  searchPlaceholder: string;
+  visibleFilters: Array<'search' | 'status' | 'priority' | 'project' | 'tag' | 'dueState'>;
+  sortOptions: TaskSortBy[];
+  defaultSort: TaskSortBy;
+  sortLabelOverrides?: Partial<Record<TaskSortBy, string>>;
+}
+
+const viewToolbarConfig: Record<ViewKey, ToolbarConfig> = {
+  inbox: {
+    searchPlaceholder: 'Search inbox tasks',
+    visibleFilters: ['search', 'priority', 'tag'],
+    sortOptions: ['createdAt', 'dueDateTime', 'priority', 'updatedAt'],
+    defaultSort: 'createdAt',
+  },
+  today: {
+    searchPlaceholder: 'Search today tasks',
+    visibleFilters: ['search', 'priority', 'tag'],
+    sortOptions: ['dueDateTime', 'priority'],
+    defaultSort: 'dueDateTime',
+    sortLabelOverrides: { dueDateTime: 'Due time' },
+  },
+  upcoming: {
+    searchPlaceholder: 'Search upcoming tasks',
+    visibleFilters: ['search', 'priority', 'project', 'tag'],
+    sortOptions: ['dueDateTime', 'priority'],
+    defaultSort: 'dueDateTime',
+  },
+  completed: {
+    searchPlaceholder: 'Search completed tasks',
+    visibleFilters: ['search', 'project', 'tag'],
+    sortOptions: ['completedAt', 'dueDateTime', 'priority'],
+    defaultSort: 'completedAt',
+  },
+  project: {
+    searchPlaceholder: 'Search project tasks',
+    visibleFilters: ['search', 'status', 'priority', 'tag'],
+    sortOptions: ['dueDateTime', 'priority', 'updatedAt'],
+    defaultSort: 'dueDateTime',
+  },
+  tag: {
+    searchPlaceholder: 'Search tagged tasks',
+    visibleFilters: ['search', 'status', 'priority', 'project'],
+    sortOptions: ['dueDateTime', 'priority', 'updatedAt'],
+    defaultSort: 'dueDateTime',
+  },
+};
+
+export const getToolbarConfig = (view: ActiveView): ToolbarConfig => viewToolbarConfig[view.type];
+
+export const sanitizeFiltersForView = (filters: TaskFilters, config: ToolbarConfig): TaskFilters => {
+  const next: TaskFilters = { ...filters };
+
+  if (!config.visibleFilters.includes('status')) next.status = 'all';
+  if (!config.visibleFilters.includes('priority')) next.priority = 'all';
+  if (!config.visibleFilters.includes('project')) next.projectId = 'all';
+  if (!config.visibleFilters.includes('tag')) next.tag = 'all';
+  if (!config.visibleFilters.includes('dueState')) next.dueState = 'all';
+
+  if (!config.sortOptions.includes(next.sortBy)) next.sortBy = config.defaultSort;
+
+  return next;
+};
 
 export const baseFilters: TaskFilters = {
   search: '',
