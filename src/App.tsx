@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TaskFiltersBar from './components/TaskFilters';
 import TaskList from './components/TaskList';
+import TaskBoard, { TaskBoardColumn } from './components/TaskBoard';
 import TaskModal from './components/TaskModal';
 import TopBar from './components/TopBar';
+import ViewModeSwitch from './components/ViewModeSwitch';
 import TodayView from './components/TodayView';
 import UpcomingView from './components/UpcomingView';
 import TaskDetailPanel from './components/TaskDetailPanel';
@@ -59,6 +61,21 @@ const slugify = (value: string): string =>
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-');
 
+type ViewMode = 'list' | 'board';
+
+const VIEW_MODE_KEY = 'smart_task_assistant_view_modes';
+
+const loadViewModes = (): Record<string, ViewMode> => {
+  try {
+    const raw = localStorage.getItem(VIEW_MODE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, ViewMode>;
+    return parsed ?? {};
+  } catch {
+    return {};
+  }
+};
+
 const App = () => {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [projects, setProjects] = useState<Project[]>(() => loadProjects());
@@ -69,10 +86,12 @@ const App = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | undefined>();
   const [upcomingWeekOffset, setUpcomingWeekOffset] = useState(0);
+  const [viewModes, setViewModes] = useState<Record<string, ViewMode>>(() => loadViewModes());
 
   useEffect(() => saveTasks(tasks), [tasks]);
   useEffect(() => saveProjects(projects), [projects]);
   useEffect(() => saveTags(tagOptions), [tagOptions]);
+  useEffect(() => localStorage.setItem(VIEW_MODE_KEY, JSON.stringify(viewModes)), [viewModes]);
   useEffect(() => {
     if (!projects.length) setProjects(DEFAULT_PROJECTS);
   }, [projects]);
@@ -114,6 +133,11 @@ const App = () => {
   const todayCount = counts.today;
   const upcomingCount = counts.upcoming;
   const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
+
+
+  const viewModeKey = activeView.type === 'project' ? 'project' : activeView.type === 'tag' ? 'tag' : activeView.type;
+  const currentViewMode = viewModes[viewModeKey] ?? (activeView.type === 'upcoming' ? 'board' : 'list');
+  const setCurrentViewMode = (mode: ViewMode) => setViewModes((prev) => ({ ...prev, [viewModeKey]: mode }));
 
   useEffect(() => {
     setFilters((prev) => sanitizeFiltersForView(prev, toolbarConfig));
@@ -339,6 +363,57 @@ const App = () => {
     return [...groups.entries()];
   }, [activeView.type, visibleTasks]);
 
+
+  const boardColumns = useMemo<TaskBoardColumn[]>(() => {
+    if (activeView.type === 'inbox' || activeView.type === 'project' || activeView.type === 'tag') {
+      const source = visibleTasks;
+      return [
+        { id: 'todo', title: 'Todo', tasks: source.filter((task) => task.status === 'todo'), emptyMessage: 'No tasks' },
+        { id: 'in-progress', title: 'In progress', tasks: source.filter((task) => task.status === 'in-progress'), emptyMessage: 'No tasks' },
+        { id: 'done', title: 'Done', tasks: source.filter((task) => task.status === 'done'), emptyMessage: 'No tasks' },
+      ];
+    }
+
+    if (activeView.type === 'today') {
+      return [
+        { id: 'overdue', title: 'Overdue', tasks: todaySections.overdue, emptyMessage: 'No overdue tasks' },
+        { id: 'due', title: 'Due Today', tasks: todaySections.dueToday, emptyMessage: 'Nothing scheduled' },
+        { id: 'flex', title: 'Flexible', tasks: todaySections.flexible, emptyMessage: 'No flexible tasks' },
+      ];
+    }
+
+    if (activeView.type === 'upcoming') {
+      return upcomingGroups.map((group) => ({
+        id: group.date,
+        title: group.label,
+        subtitle: `${group.items.length} task${group.items.length === 1 ? '' : 's'}`,
+        tasks: group.items,
+        emptyMessage: 'Nothing planned',
+        addLabel: '+ Add task',
+        onAdd: () => openCreate({ presetDate: group.date }),
+      }));
+    }
+
+    if (activeView.type === 'completed') {
+      const mapping: Record<string, Task[]> = {
+        Today: [],
+        Yesterday: [],
+        'Earlier this week': [],
+      };
+      for (const task of visibleTasks) {
+        const key = getCompletedGroupLabel(task.completedAt);
+        if (key in mapping) mapping[key].push(task);
+      }
+      return [
+        { id: 'today', title: 'Today', tasks: mapping.Today, emptyMessage: 'No completed tasks' },
+        { id: 'yesterday', title: 'Yesterday', tasks: mapping.Yesterday, emptyMessage: 'No completed tasks' },
+        { id: 'earlier', title: 'Earlier this week', tasks: mapping['Earlier this week'], emptyMessage: 'No completed tasks' },
+      ];
+    }
+
+    return [];
+  }, [activeView.type, visibleTasks, todaySections, upcomingGroups]);
+
   const projectEmptyState =
     activeView.type === 'project' && visibleTasks.length === 0
       ? {
@@ -381,9 +456,14 @@ const App = () => {
               </section>
             )}
 
-            <TaskFiltersBar filters={effectiveFilters} projects={projects} tags={tags} config={toolbarConfig} onChange={setFilters} />
+            <div className="flex items-center justify-between gap-2">
+              <TaskFiltersBar filters={effectiveFilters} projects={projects} tags={tags} config={toolbarConfig} onChange={setFilters} />
+              <ViewModeSwitch mode={currentViewMode} onChange={setCurrentViewMode} />
+            </div>
 
-            {activeView.type === 'today' ? (
+            {currentViewMode === 'board' ? (
+              <TaskBoard columns={boardColumns} enableStatusMenu={activeView.type === 'today' || activeView.type === 'upcoming'} {...sharedListProps} />
+            ) : activeView.type === 'today' ? (
               <TodayView
                 {...todaySections}
                 doneToday={doneToday}
