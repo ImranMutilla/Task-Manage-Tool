@@ -13,21 +13,24 @@ interface TaskComposerProps {
   projects: Project[];
   initialTask?: Task;
   presetDate?: string;
+  presetProjectId?: string;
+  presetTodayPinned?: boolean;
   onSubmit: (payload: TaskInput) => void;
   onCancel: () => void;
 }
 
-const TaskComposer = ({ mode, projects, initialTask, presetDate, onSubmit, onCancel }: TaskComposerProps) => {
+const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, onSubmit, onCancel }: TaskComposerProps) => {
   const [title, setTitle] = useState(initialTask?.title ?? '');
   const [description, setDescription] = useState(initialTask?.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(initialTask?.priority ?? 'p3');
-  const [projectId, setProjectId] = useState(initialTask?.projectId ?? 'inbox');
+  const [projectId, setProjectId] = useState(initialTask?.projectId ?? presetProjectId ?? 'inbox');
   const [status, setStatus] = useState<Task['status']>(initialTask?.status ?? 'todo');
-  const [todayPinned, setTodayPinned] = useState(initialTask?.todayPinned ?? Boolean(presetDate));
+  const [todayPinned, setTodayPinned] = useState(initialTask?.todayPinned ?? Boolean(presetDate || presetTodayPinned));
   const [dueDate, setDueDate] = useState(initialTask?.dueDateTime ? fromISOToDate(initialTask.dueDateTime) : presetDate ?? '');
   const [timeValue, setTimeValue] = useState(fromISOToTimeValue(initialTask?.dueDateTime, initialTask?.dueHasTime));
   const [tags, setTags] = useState<string[]>(initialTask?.tags ?? []);
   const [repeat, setRepeat] = useState<TaskRepeat>(initialTask?.repeat ?? 'none');
+  const [showMoreOptions, setShowMoreOptions] = useState(Boolean(initialTask));
 
   useEffect(() => {
     const onEsc = (event: KeyboardEvent) => {
@@ -39,6 +42,12 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, onSubmit, onCan
 
   const suggestion = useMemo(() => getTaskSuggestion(title), [title]);
   const selectedProject = projects.find((project) => project.id === projectId)?.name ?? 'Inbox';
+
+  const scheduleText = useMemo(() => {
+    if (!dueDate) return '';
+    if (timeValue) return `Scheduled for ${dueDate} at ${timeValue}`;
+    return `Scheduled for ${dueDate}`;
+  }, [dueDate, timeValue]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -73,25 +82,40 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, onSubmit, onCan
           <TimePicker15MinList value={timeValue} onChange={(value) => setTimeValue(value ?? '')} />
           <PriorityPicker value={priority} onChange={setPriority} />
           <ProjectPicker value={projectId} projects={projects} onChange={setProjectId} />
-          <TagPicker selected={tags} options={DEFAULT_TAGS} onChange={setTags} />
-          <select value={repeat} onChange={(event) => setRepeat(event.target.value as TaskRepeat)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700">
-            <option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekday">Every weekday</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>
-          </select>
         </div>
 
-        <div className="flex items-center justify-between text-xs text-slate-500">
-          <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1">
-            <input type="checkbox" checked={todayPinned} onChange={(event) => setTodayPinned(event.target.checked)} /> Pin to Today
-          </label>
-          <select value={status} onChange={(event) => setStatus(event.target.value as Task['status'])} className="rounded-lg border border-slate-200 bg-white px-2 py-1">
-            <option value="todo">Todo</option><option value="in-progress">In Progress</option><option value="done">Done</option>
-          </select>
+        <div className="flex items-center justify-between">
+          <button type="button" onClick={() => setShowMoreOptions((prev) => !prev)} className="rounded-md px-1 py-1 text-xs text-slate-500 hover:text-slate-700">
+            {showMoreOptions ? 'Hide options' : 'More options'}
+          </button>
         </div>
+
+        {showMoreOptions && (
+          <div className="space-y-2 rounded-xl border border-slate-200/70 bg-white p-2.5">
+            <TagPicker selected={tags} options={DEFAULT_TAGS} onChange={setTags} />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+              <select value={repeat} onChange={(event) => setRepeat(event.target.value as TaskRepeat)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700">
+                <option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekday">Every weekday</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>
+              </select>
+              <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1">
+                <input type="checkbox" checked={todayPinned} onChange={(event) => setTodayPinned(event.target.checked)} /> Pin to Today
+              </label>
+              <select value={status} onChange={(event) => setStatus(event.target.value as Task['status'])} className="rounded-lg border border-slate-200 bg-white px-2 py-1">
+                <option value="todo">Todo</option><option value="in-progress">In Progress</option><option value="done">Done</option>
+              </select>
+            </div>
+          </div>
+        )}
 
         {suggestion && <div className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600"><p className="font-medium text-slate-800">Suggested priority: {priorityMeta[suggestion.recommendedPriority].label}</p><p>{suggestion.dueDateHint}</p></div>}
 
         <div className="flex items-center justify-between border-t border-slate-100 pt-3">
-          <p className="text-xs text-slate-500">Task will be added to: {selectedProject}</p>
+          <p className="text-xs text-slate-500">
+            This task will be added to {selectedProject}
+            {todayPinned ? ' and Today' : ''}
+            {scheduleText ? ` · ${scheduleText}` : ''}
+            {repeat !== 'none' ? ` · Repeats ${repeat}` : ''}
+          </p>
           <div className="flex gap-2">
             <button type="button" onClick={onCancel} className="rounded-full border border-slate-300 px-3.5 py-1.5 text-sm">Cancel</button>
             <button type="submit" disabled={!title.trim()} className="rounded-full bg-slate-900 px-3.5 py-1.5 text-sm text-white disabled:opacity-50">{mode === 'create' ? 'Add task' : 'Save task'}</button>

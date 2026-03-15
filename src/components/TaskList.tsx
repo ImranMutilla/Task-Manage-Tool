@@ -9,9 +9,23 @@ interface TaskListProps {
   onDelete: (id: string) => void;
   onDuplicate: (task: Task) => void;
   onOpenDetail: (task: Task) => void;
+  onSetStatus?: (task: Task, status: Task['status']) => void;
+  enableStatusMenu?: boolean;
+  showOrganizeActions?: boolean;
 }
 
-const TaskList = ({ tasks, emptyMessage, onToggleDone, onEdit, onDelete, onDuplicate, onOpenDetail }: TaskListProps) => {
+const TaskList = ({
+  tasks,
+  emptyMessage,
+  onToggleDone,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onOpenDetail,
+  onSetStatus,
+  enableStatusMenu = false,
+  showOrganizeActions = false,
+}: TaskListProps) => {
   if (!tasks.length) {
     return <p className="px-2 py-2 text-sm text-slate-400">{emptyMessage}</p>;
   }
@@ -27,6 +41,9 @@ const TaskList = ({ tasks, emptyMessage, onToggleDone, onEdit, onDelete, onDupli
           onDelete={onDelete}
           onDuplicate={onDuplicate}
           onOpenDetail={onOpenDetail}
+          onSetStatus={onSetStatus}
+          enableStatusMenu={enableStatusMenu}
+          showOrganizeActions={showOrganizeActions}
         />
       ))}
     </section>

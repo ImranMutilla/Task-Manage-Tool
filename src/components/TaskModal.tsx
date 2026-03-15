@@ -7,17 +7,28 @@ interface TaskModalProps {
   projects: Project[];
   initialTask?: Task;
   presetDate?: string;
+  presetProjectId?: string;
+  presetTodayPinned?: boolean;
   onSubmit: (payload: TaskInput) => void;
   onClose: () => void;
 }
 
-const TaskModal = ({ open, mode, projects, initialTask, presetDate, onSubmit, onClose }: TaskModalProps) => {
+const TaskModal = ({ open, mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, onSubmit, onClose }: TaskModalProps) => {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/20 p-4 backdrop-blur-sm">
       <div className="w-full max-w-3xl">
-        <TaskComposer mode={mode} projects={projects} initialTask={initialTask} presetDate={presetDate} onSubmit={onSubmit} onCancel={onClose} />
+        <TaskComposer
+          mode={mode}
+          projects={projects}
+          initialTask={initialTask}
+          presetDate={presetDate}
+          presetProjectId={presetProjectId}
+          presetTodayPinned={presetTodayPinned}
+          onSubmit={onSubmit}
+          onCancel={onClose}
+        />
       </div>
     </div>
   );

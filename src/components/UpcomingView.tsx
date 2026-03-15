@@ -23,7 +23,7 @@ interface UpcomingViewProps {
 
 const UpcomingView = ({ groups, monthLabel, onPrevWeek, onNextWeek, onGoToday, onAddByDate, onToggleDone, onEdit, onDelete, onDuplicate, onOpenDetail }: UpcomingViewProps) => {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       <section className="flex items-center justify-between px-1">
         <h3 className="text-sm font-semibold text-slate-800">{monthLabel}</h3>
         <div className="flex items-center gap-1.5">
@@ -34,7 +34,7 @@ const UpcomingView = ({ groups, monthLabel, onPrevWeek, onNextWeek, onGoToday, o
       </section>
 
       {groups.map((group) => (
-        <section key={group.date} className="space-y-1.5 border-t border-slate-200/70 pt-3 first:border-t-0 first:pt-0">
+        <section key={group.date} className="space-y-1 border-t border-slate-200/60 pt-2.5 first:border-t-0 first:pt-0">
           <div className="flex items-center justify-between px-1">
             <h4 className="text-sm font-medium text-slate-600">{group.label}</h4>
             <button onClick={() => onAddByDate(group.date)} className="text-xs text-slate-400 transition hover:text-slate-700">+ Add task</button>
