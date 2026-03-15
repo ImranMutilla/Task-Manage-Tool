@@ -43,14 +43,15 @@ export const getTaskSuggestion = (title: string): TaskSuggestion | null => {
 
 export const isOverdue = (task: Task): boolean => !!task.dueDateTime && task.status !== 'done' && new Date(task.dueDateTime).getTime() < Date.now();
 const hasDueDate = (task: Task): boolean => Boolean(task.dueDateTime);
+const isTodayTask = (task: Task): boolean => task.status !== 'done' && (isToday(task.dueDateTime) || Boolean(task.todayPinned && !task.dueDateTime));
 
 const matchesView = (task: Task, view: ActiveView): boolean => {
   if (view.type === 'inbox') return task.projectId === 'inbox' && task.status !== 'done';
-  if (view.type === 'today') return task.status !== 'done' && (task.isInToday || isToday(task.dueDateTime));
+  if (view.type === 'today') return isTodayTask(task);
   if (view.type === 'upcoming') return task.status !== 'done' && hasDueDate(task);
   if (view.type === 'completed') return task.status === 'done';
-  if (view.type === 'project') return task.projectId === view.id;
-  if (view.type === 'tag') return task.tags.includes(view.id ?? '');
+  if (view.type === 'project') return task.projectId === view.id && task.status !== 'done';
+  if (view.type === 'tag') return task.tags.includes(view.id ?? '') && task.status !== 'done';
   return true;
 };
 
@@ -79,28 +80,24 @@ export const getVisibleTasks = (tasks: Task[], filters: TaskFilters, view: Activ
       if (filters.sortBy === 'priority') return priorityWeight[b.priority] - priorityWeight[a.priority];
       const aDue = a.dueDateTime ? new Date(a.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
       const bDue = b.dueDateTime ? new Date(b.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
+      if (aDue === bDue) return priorityWeight[b.priority] - priorityWeight[a.priority];
       return aDue - bDue;
     });
 };
 
-export const getFocusTasks = (tasks: Task[]): Task[] => {
-  const now = Date.now();
+export const getUpNextTask = (tasks: Task[]): Task | undefined => {
   return tasks
-    .filter((task) => task.status !== 'done')
+    .filter((task) => task.status !== 'done' && (isToday(task.dueDateTime) || task.todayPinned || isOverdue(task)))
     .sort((a, b) => {
       const ao = isOverdue(a) ? 1 : 0;
       const bo = isOverdue(b) ? 1 : 0;
       if (ao !== bo) return bo - ao;
       const p = priorityWeight[b.priority] - priorityWeight[a.priority];
       if (p !== 0) return p;
-      const at = isToday(a.dueDateTime) ? 1 : 0;
-      const bt = isToday(b.dueDateTime) ? 1 : 0;
-      if (at !== bt) return bt - at;
-      const ad = a.dueDateTime ? Math.abs(new Date(a.dueDateTime).getTime() - now) : Number.POSITIVE_INFINITY;
-      const bd = b.dueDateTime ? Math.abs(new Date(b.dueDateTime).getTime() - now) : Number.POSITIVE_INFINITY;
+      const ad = a.dueDateTime ? new Date(a.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
+      const bd = b.dueDateTime ? new Date(b.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
       return ad - bd;
-    })
-    .slice(0, 3);
+    })[0];
 };
 
 export const collectTags = (tasks: Task[]): string[] => [...new Set([...DEFAULT_TAGS.map((t) => t.name), ...tasks.flatMap((t) => t.tags)])];
@@ -139,8 +136,7 @@ export const buildTaskFromInput = (input: TaskInput, existing: Pick<Task, 'id' |
     projectName: project?.name ?? 'Inbox',
     tags: input.tags,
     completedAt: input.status === 'done' ? now : undefined,
-    isInInbox: (project?.id ?? 'inbox') === 'inbox',
-    isInToday: input.isInToday,
+    todayPinned: input.todayPinned,
     repeat: input.repeat,
   };
 };
@@ -156,16 +152,26 @@ export const groupUpcomingByDate = (tasks: Task[], weekOffset: number): Array<{ 
     const key = day.toISOString().slice(0, 10);
     const dayItems = tasks
       .filter((task) => task.dueDateTime?.slice(0, 10) === key)
-      .sort((a, b) => new Date(a.dueDateTime!).getTime() - new Date(b.dueDateTime!).getTime());
+      .sort((a, b) => {
+        const aHas = a.dueHasTime ? 1 : 0;
+        const bHas = b.dueHasTime ? 1 : 0;
+        if (aHas !== bHas) return bHas - aHas;
+        const aTime = a.dueDateTime ? new Date(a.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
+        const bTime = b.dueDateTime ? new Date(b.dueDateTime).getTime() : Number.POSITIVE_INFINITY;
+        if (aTime !== bTime) return aTime - bTime;
+        return priorityWeight[b.priority] - priorityWeight[a.priority];
+      });
     groups.push({ date: key, label: formatDateGroupTitle(day), items: dayItems });
   }
   return groups;
 };
 
 export const splitTodaySections = (tasks: Task[]) => {
-  const candidates = tasks.filter((task) => task.status !== 'done' && (task.isInToday || isToday(task.dueDateTime)));
-  const overdue = candidates.filter((task) => isOverdue(task));
-  const dueToday = candidates.filter((task) => !isOverdue(task) && isToday(task.dueDateTime) && task.dueHasTime);
-  const flexible = candidates.filter((task) => !isOverdue(task) && (!task.dueDateTime || !task.dueHasTime || !isToday(task.dueDateTime)));
+  const candidates = tasks.filter((task) => task.status !== 'done' && (isToday(task.dueDateTime) || task.todayPinned || isOverdue(task)));
+  const overdue = candidates.filter((task) => isOverdue(task)).sort((a, b) => new Date(a.dueDateTime!).getTime() - new Date(b.dueDateTime!).getTime());
+  const dueToday = candidates
+    .filter((task) => !isOverdue(task) && isToday(task.dueDateTime))
+    .sort((a, b) => new Date(a.dueDateTime!).getTime() - new Date(b.dueDateTime!).getTime());
+  const flexible = candidates.filter((task) => !isOverdue(task) && (!task.dueDateTime || task.todayPinned));
   return { overdue, dueToday, flexible };
 };

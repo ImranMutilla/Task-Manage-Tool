@@ -24,7 +24,7 @@ const normalizeTask = (raw: unknown): Task | null => {
 
   const fromLegacyDate = Boolean(!task.dueDateTime && task.dueDate);
   const dueDateTime = task.dueDateTime ?? (task.dueDate ? `${task.dueDate}T09:00:00.000Z` : undefined);
-  const projectId = task.projectId ?? (task.isInInbox === false ? 'personal' : 'inbox');
+  const projectId = task.projectId ?? 'inbox';
   const projectName = task.projectName ?? DEFAULT_PROJECTS.find((project) => project.id === projectId)?.name ?? 'Inbox';
   const status: TaskStatus =
     task.status === 'todo' || task.status === 'in-progress' || task.status === 'done' ? task.status : 'todo';
@@ -45,8 +45,7 @@ const normalizeTask = (raw: unknown): Task | null => {
     createdAt: task.createdAt ? String(task.createdAt) : updatedAt,
     updatedAt,
     completedAt: status === 'done' ? String(task.completedAt ?? updatedAt) : undefined,
-    isInInbox: projectId === 'inbox',
-    isInToday: Boolean(task.isInToday),
+    todayPinned: Boolean(task.todayPinned ?? task.isInToday),
     repeat: mapRepeat(task.repeat),
   };
 };

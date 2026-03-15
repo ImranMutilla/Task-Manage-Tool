@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import FocusPanel from './components/FocusPanel';
 import Sidebar from './components/Sidebar';
 import TaskFiltersBar from './components/TaskFilters';
 import TaskList from './components/TaskList';
@@ -17,7 +16,7 @@ import {
   collectTags,
   countsByProject,
   DEFAULT_PROJECTS,
-  getFocusTasks,
+  getUpNextTask,
   getVisibleTasks,
   groupUpcomingByDate,
   splitTodaySections,
@@ -48,19 +47,29 @@ const App = () => {
 
   const tags = useMemo(() => collectTags(tasks), [tasks]);
   const visibleTasks = useMemo(() => getVisibleTasks(tasks, filters, activeView), [tasks, filters, activeView]);
-  const focusTasks = useMemo(() => getFocusTasks(tasks), [tasks]);
   const todaySections = useMemo(() => splitTodaySections(tasks), [tasks]);
+  const upNext = useMemo(() => getUpNextTask(tasks), [tasks]);
   const countProject = useMemo(() => countsByProject(tasks), [tasks]);
+
+  const todayCount = useMemo(
+    () => tasks.filter((task) => task.status !== 'done' && ((task.dueDateTime && new Date(task.dueDateTime).toDateString() === new Date().toDateString()) || (task.todayPinned && !task.dueDateTime))).length,
+    [tasks],
+  );
+
+  const upcomingCount = useMemo(
+    () => tasks.filter((task) => task.status !== 'done' && task.dueDateTime && new Date(task.dueDateTime).getTime() >= startOfDay(new Date()).getTime()).length,
+    [tasks],
+  );
 
   const counts = useMemo(
     () => ({
       inbox: tasks.filter((task) => task.projectId === 'inbox' && task.status !== 'done').length,
-      today: todaySections.overdue.length + todaySections.dueToday.length + todaySections.flexible.length,
-      upcoming: tasks.filter((task) => task.status !== 'done' && task.dueDateTime).length,
+      today: todayCount,
+      upcoming: upcomingCount,
       completed: tasks.filter((task) => task.status === 'done').length,
       project: countProject,
     }),
-    [tasks, todaySections, countProject],
+    [tasks, todayCount, upcomingCount, countProject],
   );
 
   const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
@@ -83,29 +92,16 @@ const App = () => {
     const now = new Date().toISOString();
     const done = task.status === 'done';
     setTasks((prev) => {
-      const updated = prev.map((item) => {
-        if (item.id !== task.id) return item;
-        return {
-          ...item,
-          status: (done ? 'todo' : 'done') as Task['status'],
-          completedAt: done ? undefined : now,
-          updatedAt: now,
-        };
-      });
+      const updated = prev.map((item) =>
+        item.id === task.id
+          ? { ...item, status: (done ? 'todo' : 'done') as Task['status'], completedAt: done ? undefined : now, updatedAt: now }
+          : item,
+      );
 
       if (!done && task.repeat !== 'none' && task.dueDateTime) {
         const repeatDue = getNextRepeatDue(task.dueDateTime, task.repeat);
-        updated.unshift({
-          ...task,
-          id: crypto.randomUUID(),
-          status: 'todo',
-          completedAt: undefined,
-          createdAt: now,
-          updatedAt: now,
-          dueDateTime: repeatDue,
-        });
+        updated.unshift({ ...task, id: crypto.randomUUID(), status: 'todo', completedAt: undefined, createdAt: now, updatedAt: now, dueDateTime: repeatDue });
       }
-
       return updated;
     });
   };
@@ -116,30 +112,23 @@ const App = () => {
     setTasks((prev) => [{ ...task, id: crypto.randomUUID(), createdAt: now, updatedAt: now, completedAt: undefined, status: 'todo' }, ...prev]);
   };
 
-  const openCreate = (presetDate?: string, today = false) => {
-    setModalState({ open: true, mode: 'create', presetDate });
-    if (today) {
-      setTimeout(() => {
-        // noop for UX pacing
-      }, 0);
-    }
-  };
+  const openCreate = (presetDate?: string) => setModalState({ open: true, mode: 'create', presetDate });
 
   const subtitle =
     activeView.type === 'inbox'
-      ? 'Capture tasks quickly and organize later.'
+      ? 'Inbox: tasks not yet organized into a formal project.'
       : activeView.type === 'today'
-        ? 'Plan execution by overdue, due today, and flexible tasks.'
+        ? 'Today: due today or pinned for today execution.'
         : activeView.type === 'upcoming'
-          ? 'Preview and schedule the next days clearly.'
+          ? 'Upcoming: dated tasks from today onward.'
           : activeView.type === 'completed'
-            ? 'Review completed tasks and recurring outcomes.'
-            : `Filtered view · ${activeView.label}`;
+            ? 'Completed: finished tasks sorted by completion time.'
+            : activeView.type === 'tag'
+              ? `Tasks tagged with ${activeView.id}`
+              : `Project view · ${activeView.label}`;
 
   const upcomingGroups = useMemo(() => groupUpcomingByDate(visibleTasks, upcomingWeekOffset), [visibleTasks, upcomingWeekOffset]);
-  const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(
-    new Date(startOfDay(new Date()).getTime() + upcomingWeekOffset * 7 * 24 * 60 * 60 * 1000),
-  );
+  const monthLabel = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(startOfDay(new Date()).getTime() + upcomingWeekOffset * 7 * 24 * 60 * 60 * 1000));
 
   const sharedListProps = {
     onToggleDone: toggleDone,
@@ -148,6 +137,12 @@ const App = () => {
     onDuplicate: duplicateTask,
     onOpenDetail: (task: Task) => setSelectedTask(task),
   };
+
+  const doneToday = tasks.filter((task) => task.status === 'done' && task.completedAt && new Date(task.completedAt).toDateString() === new Date().toDateString()).length;
+  const tagStats = activeView.type === 'tag' ? {
+    uncompleted: tasks.filter((task) => task.status !== 'done' && task.tags.includes(activeView.id ?? '')).length,
+    today: tasks.filter((task) => task.status !== 'done' && task.tags.includes(activeView.id ?? '') && task.dueDateTime && new Date(task.dueDateTime).toDateString() === new Date().toDateString()).length,
+  } : null;
 
   return (
     <div className="min-h-screen bg-[#f5f5f7] text-slate-800">
@@ -170,27 +165,21 @@ const App = () => {
           <TopBar title={activeView.label} subtitle={subtitle} onNewTask={() => setModalState({ open: true, mode: 'create' })} onOpenSidebar={() => setMobileSidebarOpen(true)} />
 
           <main className="mx-auto w-full max-w-5xl space-y-3 p-4 md:p-6">
-            {(activeView.type === 'today' || activeView.type === 'inbox') && <FocusPanel tasks={focusTasks} />}
+            {activeView.type === 'tag' && tagStats && (
+              <section className="rounded-2xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                # {activeView.id} · Uncompleted {tagStats.uncompleted} · Due today {tagStats.today}
+              </section>
+            )}
             <TaskFiltersBar filters={filters} projects={projects} tags={tags} onChange={setFilters} />
 
             {activeView.type === 'today' ? (
-              <TodayView {...todaySections} {...sharedListProps} onQuickAddToday={() => openCreate(new Date().toISOString().slice(0, 10), true)} />
+              <TodayView {...todaySections} doneToday={doneToday} upNext={upNext} {...sharedListProps} onQuickAddToday={() => openCreate(new Date().toISOString().slice(0, 10))} />
             ) : activeView.type === 'upcoming' ? (
-              <UpcomingView
-                groups={upcomingGroups}
-                monthLabel={monthLabel}
-                onPrevWeek={() => setUpcomingWeekOffset((prev) => prev - 1)}
-                onNextWeek={() => setUpcomingWeekOffset((prev) => prev + 1)}
-                onGoToday={() => setUpcomingWeekOffset(0)}
-                onAddByDate={(date) => openCreate(date)}
-                {...sharedListProps}
-              />
+              <UpcomingView groups={upcomingGroups} monthLabel={monthLabel} onPrevWeek={() => setUpcomingWeekOffset((prev) => prev - 1)} onNextWeek={() => setUpcomingWeekOffset((prev) => prev + 1)} onGoToday={() => setUpcomingWeekOffset(0)} onAddByDate={(date) => openCreate(date)} {...sharedListProps} />
             ) : (
               <>
                 <TaskList tasks={visibleTasks} emptyMessage={activeView.type === 'inbox' ? 'No tasks in Inbox. Capture something to get started.' : activeView.type === 'completed' ? 'No completed tasks yet.' : 'No tasks in this view.'} {...sharedListProps} />
-                {activeView.type === 'inbox' && (
-                  <button onClick={() => openCreate()} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600">+ Add task</button>
-                )}
+                {activeView.type === 'inbox' && <button onClick={() => openCreate()} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600">+ Add task</button>}
               </>
             )}
           </main>

@@ -28,10 +28,10 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   completedAt?: string;
-  isInInbox: boolean;
-  isInToday: boolean;
+  todayPinned?: boolean;
   repeat: TaskRepeat;
   dueDate?: string;
+  isInToday?: boolean;
 }
 
 export interface TaskSuggestion {
@@ -70,6 +70,6 @@ export interface TaskInput {
   time?: string;
   projectId?: string;
   tags: string[];
-  isInToday: boolean;
+  todayPinned: boolean;
   repeat: TaskRepeat;
 }

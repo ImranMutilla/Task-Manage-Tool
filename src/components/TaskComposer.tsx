@@ -23,7 +23,7 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, onSubmit, onCan
   const [priority, setPriority] = useState<TaskPriority>(initialTask?.priority ?? 'p3');
   const [projectId, setProjectId] = useState(initialTask?.projectId ?? 'inbox');
   const [status, setStatus] = useState<Task['status']>(initialTask?.status ?? 'todo');
-  const [isInToday, setIsInToday] = useState(initialTask?.isInToday ?? Boolean(presetDate));
+  const [todayPinned, setTodayPinned] = useState(initialTask?.todayPinned ?? Boolean(presetDate));
   const [dueDate, setDueDate] = useState(initialTask?.dueDateTime ? fromISOToDate(initialTask.dueDateTime) : presetDate ?? '');
   const [timeValue, setTimeValue] = useState(fromISOToTimeValue(initialTask?.dueDateTime, initialTask?.dueHasTime));
   const [tags, setTags] = useState<string[]>(initialTask?.tags ?? []);
@@ -52,7 +52,7 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, onSubmit, onCan
       time: timeValue || undefined,
       projectId,
       tags,
-      isInToday,
+      todayPinned,
       repeat,
     });
   };
@@ -75,17 +75,13 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, onSubmit, onCan
           <ProjectPicker value={projectId} projects={projects} onChange={setProjectId} />
           <TagPicker selected={tags} options={DEFAULT_TAGS} onChange={setTags} />
           <select value={repeat} onChange={(event) => setRepeat(event.target.value as TaskRepeat)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700">
-            <option value="none">Does not repeat</option>
-            <option value="daily">Daily</option>
-            <option value="weekday">Every weekday</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
+            <option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekday">Every weekday</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>
           </select>
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-500">
           <label className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1">
-            <input type="checkbox" checked={isInToday} onChange={(event) => setIsInToday(event.target.checked)} /> Add to Today
+            <input type="checkbox" checked={todayPinned} onChange={(event) => setTodayPinned(event.target.checked)} /> Pin to Today
           </label>
           <select value={status} onChange={(event) => setStatus(event.target.value as Task['status'])} className="rounded-lg border border-slate-200 bg-white px-2 py-1">
             <option value="todo">Todo</option><option value="in-progress">In Progress</option><option value="done">Done</option>

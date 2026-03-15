@@ -39,7 +39,7 @@ const UpcomingView = ({ groups, monthLabel, onPrevWeek, onNextWeek, onGoToday, o
             <h4 className="text-sm font-medium text-slate-600">{group.label}</h4>
             <button onClick={() => onAddByDate(group.date)} className="text-xs text-slate-500 hover:text-slate-800">+ Add task</button>
           </div>
-          <TaskList tasks={group.items} emptyMessage="No tasks for this day." onToggleDone={onToggleDone} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate} onOpenDetail={onOpenDetail} />
+          <TaskList tasks={group.items} emptyMessage="Nothing planned." onToggleDone={onToggleDone} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate} onOpenDetail={onOpenDetail} />
         </section>
       ))}
     </div>
