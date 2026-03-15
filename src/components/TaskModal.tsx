@@ -1,4 +1,4 @@
-import { Project, Task, TaskInput } from '../types/task';
+import { Project, TagOption, Task, TaskInput } from '../types/task';
 import TaskComposer from './TaskComposer';
 
 interface TaskModalProps {
@@ -9,12 +9,12 @@ interface TaskModalProps {
   presetDate?: string;
   presetProjectId?: string;
   presetTodayPinned?: boolean;
-  knownTags: string[];
+  tagOptions: TagOption[];
   onSubmit: (payload: TaskInput) => void;
   onClose: () => void;
 }
 
-const TaskModal = ({ open, mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, knownTags, onSubmit, onClose }: TaskModalProps) => {
+const TaskModal = ({ open, mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, tagOptions, onSubmit, onClose }: TaskModalProps) => {
   if (!open) return null;
 
   return (
@@ -27,7 +27,7 @@ const TaskModal = ({ open, mode, projects, initialTask, presetDate, presetProjec
           presetDate={presetDate}
           presetProjectId={presetProjectId}
           presetTodayPinned={presetTodayPinned}
-          knownTags={knownTags}
+          tagOptions={tagOptions}
           onSubmit={onSubmit}
           onCancel={onClose}
         />

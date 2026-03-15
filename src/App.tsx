@@ -8,14 +8,14 @@ import TodayView from './components/TodayView';
 import UpcomingView from './components/UpcomingView';
 import TaskDetailPanel from './components/TaskDetailPanel';
 import { getNextRepeatDue, startOfDay } from './utils/dateTime';
-import { loadProjects, loadTasks, saveProjects, saveTasks } from './services/localStorage';
-import { ActiveView, Project, Task, TaskInput } from './types/task';
+import { loadProjects, loadTags, loadTasks, saveProjects, saveTags, saveTasks } from './services/localStorage';
+import { ActiveView, Project, TagOption, Task, TaskInput } from './types/task';
 import {
   baseFilters,
   buildTaskFromInput,
-  collectTags,
   countsByProject,
   DEFAULT_PROJECTS,
+  DEFAULT_TAGS,
   getToolbarConfig,
   getUpNextTask,
   getViewCounts,
@@ -35,7 +35,6 @@ interface ModalState {
   presetTodayPinned?: boolean;
 }
 
-
 const getCompletedGroupLabel = (value?: string): string => {
   if (!value) return 'Earlier';
   const date = new Date(value);
@@ -52,9 +51,18 @@ const getCompletedGroupLabel = (value?: string): string => {
   return 'Earlier';
 };
 
+const slugify = (value: string): string =>
+  value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-');
+
 const App = () => {
   const [tasks, setTasks] = useState<Task[]>(() => loadTasks());
   const [projects, setProjects] = useState<Project[]>(() => loadProjects());
+  const [tagOptions, setTagOptions] = useState<TagOption[]>(() => loadTags());
   const [activeView, setActiveView] = useState<ActiveView>({ type: 'today', label: 'Today' });
   const [filters, setFilters] = useState(baseFilters);
   const [modalState, setModalState] = useState<ModalState>({ open: false, mode: 'create' });
@@ -64,11 +72,28 @@ const App = () => {
 
   useEffect(() => saveTasks(tasks), [tasks]);
   useEffect(() => saveProjects(projects), [projects]);
+  useEffect(() => saveTags(tagOptions), [tagOptions]);
   useEffect(() => {
     if (!projects.length) setProjects(DEFAULT_PROJECTS);
   }, [projects]);
 
-  const tags = useMemo(() => collectTags(tasks), [tasks]);
+  const allTagOptions = useMemo(() => {
+    const map = new Map<string, TagOption>();
+    for (const tag of tagOptions) map.set(tag.name.toLowerCase(), tag);
+    for (const taskTag of tasks.flatMap((task) => task.tags)) {
+      const key = taskTag.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, {
+          id: slugify(taskTag) || crypto.randomUUID(),
+          name: taskTag,
+          colorClass: 'bg-slate-100 text-slate-600',
+        });
+      }
+    }
+    return [...map.values()];
+  }, [tagOptions, tasks]);
+
+  const tags = useMemo(() => allTagOptions.map((tag) => tag.name), [allTagOptions]);
   const toolbarConfig = useMemo(() => getToolbarConfig(activeView), [activeView]);
   const effectiveFilters = useMemo(() => sanitizeFiltersForView(filters, toolbarConfig), [filters, toolbarConfig]);
   const visibleTasks = useMemo(() => getVisibleTasks(tasks, effectiveFilters, activeView), [tasks, effectiveFilters, activeView]);
@@ -117,7 +142,6 @@ const App = () => {
     window.addEventListener('keydown', onShortcut);
     return () => window.removeEventListener('keydown', onShortcut);
   }, [activeView]);
-
 
   const onCreate = (input: TaskInput) => {
     setTasks((prev) => [buildTaskFromInput(input, null, projectMap), ...prev]);
@@ -179,6 +203,90 @@ const App = () => {
     });
   };
 
+  const createProject = () => {
+    const name = window.prompt('Project name');
+    if (!name?.trim()) return;
+    const idBase = slugify(name);
+    const hasTaken = projects.some((project) => project.id === idBase || project.name.toLowerCase() === name.trim().toLowerCase());
+    const id = hasTaken ? `${idBase}-${Date.now()}` : idBase;
+    setProjects((prev) => [...prev, { id, name: name.trim() }]);
+  };
+
+  const editProject = (project: Project) => {
+    const nextName = window.prompt('Rename project', project.name);
+    if (!nextName?.trim() || nextName.trim() === project.name) return;
+    const renamed = nextName.trim();
+    setProjects((prev) => prev.map((item) => (item.id === project.id ? { ...item, name: renamed } : item)));
+    setTasks((prev) => prev.map((task) => (task.projectId === project.id ? { ...task, projectName: renamed, updatedAt: new Date().toISOString() } : task)));
+    if (activeView.type === 'project' && activeView.id === project.id) {
+      setActiveView({ ...activeView, label: renamed });
+    }
+  };
+
+  const deleteProject = (project: Project) => {
+    if (project.id === 'inbox') return;
+    const ok = window.confirm(`Delete project "${project.name}"? Tasks will be moved to Inbox.`);
+    if (!ok) return;
+    setProjects((prev) => prev.filter((item) => item.id !== project.id));
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.projectId === project.id
+          ? { ...task, projectId: 'inbox', projectName: 'Inbox', updatedAt: new Date().toISOString() }
+          : task,
+      ),
+    );
+    if (activeView.type === 'project' && activeView.id === project.id) {
+      setActiveView({ type: 'inbox', label: 'Inbox' });
+    }
+  };
+
+  const createTag = () => {
+    const name = window.prompt('Tag name');
+    if (!name?.trim()) return;
+    if (allTagOptions.some((tag) => tag.name.toLowerCase() === name.trim().toLowerCase())) return;
+    const palette = DEFAULT_TAGS.map((tag) => tag.colorClass);
+    const colorClass = palette[tagOptions.length % palette.length] ?? 'bg-slate-100 text-slate-600';
+    const newTag: TagOption = {
+      id: slugify(name) || crypto.randomUUID(),
+      name: name.trim(),
+      colorClass,
+    };
+    setTagOptions((prev) => [...prev, newTag]);
+  };
+
+  const editTag = (tag: TagOption) => {
+    const nextName = window.prompt('Rename tag', tag.name);
+    if (!nextName?.trim() || nextName.trim() === tag.name) return;
+    const renamed = nextName.trim();
+    setTagOptions((prev) => prev.map((item) => (item.id === tag.id ? { ...item, name: renamed } : item)));
+    setTasks((prev) =>
+      prev.map((task) => ({
+        ...task,
+        tags: task.tags.map((item) => (item === tag.name ? renamed : item)),
+        updatedAt: task.tags.includes(tag.name) ? new Date().toISOString() : task.updatedAt,
+      })),
+    );
+    if (activeView.type === 'tag' && activeView.id === tag.name) {
+      setActiveView({ type: 'tag', id: renamed, label: `#${renamed}` });
+    }
+  };
+
+  const deleteTag = (tag: TagOption) => {
+    const ok = window.confirm(`Delete tag "${tag.name}"? It will be removed from related tasks.`);
+    if (!ok) return;
+    setTagOptions((prev) => prev.filter((item) => item.id !== tag.id));
+    setTasks((prev) =>
+      prev.map((task) =>
+        task.tags.includes(tag.name)
+          ? { ...task, tags: task.tags.filter((item) => item !== tag.name), updatedAt: new Date().toISOString() }
+          : task,
+      ),
+    );
+    if (activeView.type === 'tag' && activeView.id === tag.name) {
+      setActiveView({ type: 'today', label: 'Today' });
+    }
+  };
+
   const subtitle =
     activeView.type === 'inbox'
       ? inboxCount > 0
@@ -226,7 +334,7 @@ const App = () => {
     for (const task of visibleTasks) {
       const label = getCompletedGroupLabel(task.completedAt);
       if (!groups.has(label)) groups.set(label, []);
-      groups.get(label)!.push(task);
+      groups.get(label)?.push(task);
     }
     return [...groups.entries()];
   }, [activeView.type, visibleTasks]);
@@ -246,13 +354,19 @@ const App = () => {
         <Sidebar
           activeView={activeView}
           projects={projects}
-          tags={tags}
+          tags={allTagOptions}
           counts={counts}
           onSelectView={(view) => {
             setActiveView(view);
             setMobileSidebarOpen(false);
           }}
           onNewTask={() => openCreate()}
+          onCreateProject={createProject}
+          onEditProject={editProject}
+          onDeleteProject={deleteProject}
+          onCreateTag={createTag}
+          onEditTag={editTag}
+          onDeleteTag={deleteTag}
           mobileOpen={mobileSidebarOpen}
           onCloseMobile={() => setMobileSidebarOpen(false)}
         />
@@ -285,6 +399,7 @@ const App = () => {
                 onNextWeek={() => setUpcomingWeekOffset((prev) => prev + 1)}
                 onGoToday={() => setUpcomingWeekOffset(0)}
                 onAddByDate={(date) => openCreate({ presetDate: date })}
+                enableStatusMenu
                 {...sharedListProps}
               />
             ) : (
@@ -320,7 +435,12 @@ const App = () => {
                         {visibleTasks.length} open task{visibleTasks.length === 1 ? '' : 's'} in {activeView.label}
                       </section>
                     )}
-                    <TaskList tasks={visibleTasks} emptyMessage={activeView.type === 'inbox' ? 'No tasks in Inbox. Capture something to get started.' : 'No tasks in this view.'} showOrganizeActions={activeView.type === 'inbox'} {...sharedListProps} />
+                    <TaskList
+                      tasks={visibleTasks}
+                      emptyMessage={activeView.type === 'inbox' ? 'No tasks in Inbox. Capture something to get started.' : 'No tasks in this view.'}
+                      showOrganizeActions={activeView.type === 'inbox'}
+                      {...sharedListProps}
+                    />
                   </>
                 )}
               </>
@@ -337,7 +457,7 @@ const App = () => {
         presetDate={modalState.presetDate}
         presetProjectId={modalState.presetProjectId}
         presetTodayPinned={modalState.presetTodayPinned}
-        knownTags={tags}
+        tagOptions={allTagOptions}
         onSubmit={modalState.mode === 'create' ? onCreate : onUpdate}
         onClose={closeModal}
       />

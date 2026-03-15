@@ -49,9 +49,8 @@ export const parseQuickTaskInput = (title: string, projects: Project[], knownTag
   if (!result.cleanTitle) return result;
 
   let working = result.cleanTitle;
-  const lower = working.toLowerCase();
 
-  const tomorrowTime = lower.match(/tomorrow\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i);
+  const tomorrowTime = working.match(/\btomorrow\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
   if (tomorrowTime) {
     const hourRaw = Number(tomorrowTime[1]);
     const minute = tomorrowTime[2] ?? '00';
@@ -62,16 +61,16 @@ export const parseQuickTaskInput = (title: string, projects: Project[], knownTag
     result.dueDate = tomorrow.toISOString().slice(0, 10);
     result.time = `${String(hour24).padStart(2, '0')}:${minute}`;
     working = working.replace(tomorrowTime[0], '').trim();
-  } else if (/tomorrow/i.test(lower)) {
+  } else if (/\btomorrow\b/i.test(working)) {
     const tomorrow = startOfDay(new Date());
     tomorrow.setDate(tomorrow.getDate() + 1);
     result.dueDate = tomorrow.toISOString().slice(0, 10);
-    working = working.replace(/tomorrow/ig, '').trim();
+    working = working.replace(/\btomorrow\b/ig, '').trim();
   }
 
-  if (/every\s+monday/i.test(working)) {
+  if (/\bevery\s+monday\b/i.test(working)) {
     result.repeat = 'weekly';
-    working = working.replace(/every\s+monday/ig, '').trim();
+    working = working.replace(/\bevery\s+monday\b/ig, '').trim();
   }
 
   const projectToken = working.match(/#([\w-]+)/);

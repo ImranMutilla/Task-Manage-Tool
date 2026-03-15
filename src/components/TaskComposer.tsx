@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Project, Task, TaskInput, TaskPriority, TaskRepeat } from '../types/task';
+import { Project, TagOption, Task, TaskInput, TaskPriority, TaskRepeat } from '../types/task';
 import { fromISOToDate, fromISOToTimeValue } from '../utils/dateTime';
-import { DEFAULT_TAGS, getTaskSuggestion, parseQuickTaskInput, priorityMeta } from '../utils/taskUtils';
+import { getTaskSuggestion, parseQuickTaskInput, priorityMeta } from '../utils/taskUtils';
 import DatePickerQuick from './DatePickerQuick';
 import PriorityPicker from './PriorityPicker';
 import ProjectPicker from './ProjectPicker';
@@ -15,12 +15,12 @@ interface TaskComposerProps {
   presetDate?: string;
   presetProjectId?: string;
   presetTodayPinned?: boolean;
-  knownTags: string[];
+  tagOptions: TagOption[];
   onSubmit: (payload: TaskInput) => void;
   onCancel: () => void;
 }
 
-const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, knownTags, onSubmit, onCancel }: TaskComposerProps) => {
+const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId, presetTodayPinned, tagOptions, onSubmit, onCancel }: TaskComposerProps) => {
   const [title, setTitle] = useState(initialTask?.title ?? '');
   const [description, setDescription] = useState(initialTask?.description ?? '');
   const [priority, setPriority] = useState<TaskPriority>(initialTask?.priority ?? 'p3');
@@ -54,7 +54,7 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId
     event.preventDefault();
     if (!title.trim()) return;
 
-    const quick = parseQuickTaskInput(title, projects, knownTags);
+    const quick = parseQuickTaskInput(title, projects, tagOptions.map((tag) => tag.name));
 
     onSubmit({
       title: quick.cleanTitle,
@@ -97,7 +97,7 @@ const TaskComposer = ({ mode, projects, initialTask, presetDate, presetProjectId
 
         {showMoreOptions && (
           <div className="space-y-2 rounded-xl border border-slate-200/70 bg-white p-2.5">
-            <TagPicker selected={tags} options={DEFAULT_TAGS} onChange={setTags} />
+            <TagPicker selected={tags} options={tagOptions} onChange={setTags} />
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
               <select value={repeat} onChange={(event) => setRepeat(event.target.value as TaskRepeat)} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-xs text-slate-700">
                 <option value="none">Does not repeat</option><option value="daily">Daily</option><option value="weekday">Every weekday</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option>

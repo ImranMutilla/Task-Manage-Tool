@@ -1,8 +1,9 @@
-import { Project, Task, TaskPriority, TaskRepeat, TaskStatus } from '../types/task';
-import { DEFAULT_PROJECTS } from '../utils/taskUtils';
+import { Project, TagOption, Task, TaskPriority, TaskRepeat, TaskStatus } from '../types/task';
+import { DEFAULT_PROJECTS, DEFAULT_TAGS } from '../utils/taskUtils';
 
 const TASKS_KEY = 'smart_task_assistant_tasks';
 const PROJECTS_KEY = 'smart_task_assistant_projects';
+const TAGS_KEY = 'smart_task_assistant_tags';
 
 const mapLegacyPriority = (priority?: string): TaskPriority => {
   if (priority === 'p1' || priority === 'p2' || priority === 'p3' || priority === 'p4') return priority;
@@ -92,4 +93,38 @@ export const loadProjects = (): Project[] => {
 
 export const saveProjects = (projects: Project[]): void => {
   localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+};
+
+
+const normalizeTag = (raw: unknown): TagOption | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const tag = raw as Partial<TagOption> & { color?: string; label?: string };
+  const name = tag.name ?? tag.label;
+  if (!name) return null;
+  const id = tag.id ?? String(name).toLowerCase().replace(/\s+/g, '-');
+  const defaultTag = DEFAULT_TAGS.find((item) => item.name.toLowerCase() === String(name).toLowerCase());
+  return {
+    id: String(id),
+    name: String(name),
+    colorClass: tag.colorClass ? String(tag.colorClass) : defaultTag?.colorClass ?? 'bg-slate-100 text-slate-600',
+  };
+};
+
+export const loadTags = (): TagOption[] => {
+  try {
+    const raw = localStorage.getItem(TAGS_KEY);
+    if (!raw) return DEFAULT_TAGS;
+    const parsed = JSON.parse(raw) as unknown[];
+    if (!Array.isArray(parsed)) return DEFAULT_TAGS;
+    const tags = parsed.map((item) => normalizeTag(item)).filter((tag): tag is TagOption => tag !== null);
+    const map = new Map(tags.map((tag) => [tag.name.toLowerCase(), tag]));
+    for (const defaultTag of DEFAULT_TAGS) if (!map.has(defaultTag.name.toLowerCase())) map.set(defaultTag.name.toLowerCase(), defaultTag);
+    return [...map.values()];
+  } catch {
+    return DEFAULT_TAGS;
+  }
+};
+
+export const saveTags = (tags: TagOption[]): void => {
+  localStorage.setItem(TAGS_KEY, JSON.stringify(tags));
 };

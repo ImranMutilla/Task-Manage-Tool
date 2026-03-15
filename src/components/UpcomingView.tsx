@@ -15,10 +15,12 @@ interface UpcomingViewProps {
   onGoToday: () => void;
   onAddByDate: (date: string) => void;
   onToggleDone: (task: Task) => void;
+  onSetStatus?: (task: Task, status: Task['status']) => void;
   onEdit: (task: Task) => void;
   onDelete: (id: string) => void;
   onDuplicate: (task: Task) => void;
   onOpenDetail: (task: Task) => void;
+  enableStatusMenu?: boolean;
 }
 
 const getFirstTimeHint = (items: Task[]): string => {
@@ -27,7 +29,21 @@ const getFirstTimeHint = (items: Task[]): string => {
   return ` · first at ${new Date(timed[0].dueDateTime!).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 };
 
-const UpcomingView = ({ groups, monthLabel, onPrevWeek, onNextWeek, onGoToday, onAddByDate, onToggleDone, onEdit, onDelete, onDuplicate, onOpenDetail }: UpcomingViewProps) => {
+const UpcomingView = ({
+  groups,
+  monthLabel,
+  onPrevWeek,
+  onNextWeek,
+  onGoToday,
+  onAddByDate,
+  onToggleDone,
+  onSetStatus,
+  onEdit,
+  onDelete,
+  onDuplicate,
+  onOpenDetail,
+  enableStatusMenu = false,
+}: UpcomingViewProps) => {
   return (
     <div className="space-y-3.5">
       <section className="flex items-center justify-between px-1">
@@ -48,7 +64,17 @@ const UpcomingView = ({ groups, monthLabel, onPrevWeek, onNextWeek, onGoToday, o
             </div>
             <button onClick={() => onAddByDate(group.date)} className="text-xs text-slate-400 transition hover:text-slate-700">+ Add task</button>
           </div>
-          <TaskList tasks={group.items} emptyMessage="Nothing planned." onToggleDone={onToggleDone} onEdit={onEdit} onDelete={onDelete} onDuplicate={onDuplicate} onOpenDetail={onOpenDetail} />
+          <TaskList
+            tasks={group.items}
+            emptyMessage="Nothing planned."
+            onToggleDone={onToggleDone}
+            onSetStatus={onSetStatus}
+            enableStatusMenu={enableStatusMenu}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onDuplicate={onDuplicate}
+            onOpenDetail={onOpenDetail}
+          />
         </section>
       ))}
     </div>
