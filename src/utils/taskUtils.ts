@@ -24,36 +24,18 @@ export const priorityLabel: Record<TaskPriority, string> = {
   low: '低',
 };
 
-export const getDueTimestamp = (task: Task): number => {
-  if (!task.dueDateTime) return Number.POSITIVE_INFINITY;
-  return new Date(task.dueDateTime).getTime();
-};
-
 export const isOverdue = (task: Task): boolean => {
-  if (!task.dueDateTime || task.status === 'done') return false;
-  return getDueTimestamp(task) < Date.now();
-};
-
-export const formatDueDateTime = (dueDateTime?: string): string => {
-  if (!dueDateTime) return 'No deadline';
-  const date = new Date(dueDateTime);
-  if (Number.isNaN(date.getTime())) return 'Invalid date';
-
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
+  if (!task.dueDate || task.status === 'done') return false;
+  const due = new Date(task.dueDate).getTime();
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+  return due < today.getTime();
 };
 
 export const getFilteredTasks = (tasks: Task[], filters: TaskFilters): Task[] => {
   return tasks
     .filter((task) => {
-      const keyword = filters.search.toLowerCase().trim();
-      const matchSearch =
-        task.title.toLowerCase().includes(keyword) || task.tags.join(' ').toLowerCase().includes(keyword);
+      const matchSearch = task.title.toLowerCase().includes(filters.search.toLowerCase().trim());
       const matchStatus = filters.status === 'all' || task.status === filters.status;
       const matchPriority = filters.priority === 'all' || task.priority === filters.priority;
       return matchSearch && matchStatus && matchPriority;
@@ -63,27 +45,30 @@ export const getFilteredTasks = (tasks: Task[], filters: TaskFilters): Task[] =>
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
 
-      const dueDiff = getDueTimestamp(a) - getDueTimestamp(b);
-      if (dueDiff !== 0) return dueDiff;
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+      if (aDue === bDue) {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      return aDue - bDue;
     });
 };
 
 export const getFocusTask = (tasks: Task[]): Task | null => {
   const candidates = tasks.filter((task) => task.status !== 'done');
-  if (!candidates.length) return null;
+  if (candidates.length === 0) return null;
 
-  return [...candidates].sort((a, b) => {
-    const statusDiff = statusWeight[b.status] - statusWeight[a.status];
-    if (statusDiff !== 0) return statusDiff;
+  return candidates.sort((a, b) => {
+    const aDue = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+    const bDue = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
 
-    const priorityDiff = priorityWeight[b.priority] - priorityWeight[a.priority];
-    if (priorityDiff !== 0) return priorityDiff;
+    const dueScore = aDue - bDue;
+    if (dueScore !== 0) return dueScore;
 
-    const dueDiff = getDueTimestamp(a) - getDueTimestamp(b);
-    if (dueDiff !== 0) return dueDiff;
+    const priorityScore = priorityWeight[b.priority] - priorityWeight[a.priority];
+    if (priorityScore !== 0) return priorityScore;
 
-    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+    return statusWeight[b.status] - statusWeight[a.status];
   })[0];
 };
 
@@ -94,7 +79,7 @@ export const getTaskSuggestion = (title: string): TaskSuggestion | null => {
   if (normalized.includes('面试')) {
     return {
       recommendedPriority: 'high',
-      dueDateHint: '建议在本周内设置明确时间点，例如面试前一天 18:30 完成复盘。',
+      dueDateHint: '建议在 3-5 天内设置截止日期，便于倒排准备节奏。',
       splitIdeas: ['修改简历', '准备自我介绍', '整理项目经验', '模拟常见问题'],
     };
   }
@@ -102,7 +87,7 @@ export const getTaskSuggestion = (title: string): TaskSuggestion | null => {
   if (normalized.includes('客户') || normalized.includes('方案')) {
     return {
       recommendedPriority: 'high',
-      dueDateHint: '建议设置具体提交时间，并预留至少 2 小时用于最终校对。',
+      dueDateHint: '建议设置明确截止日期，并在提交前预留 1 天校对。',
       splitIdeas: ['确认客户目标', '收集数据与案例', '整理方案结构', '制作汇报版本'],
     };
   }
@@ -110,14 +95,22 @@ export const getTaskSuggestion = (title: string): TaskSuggestion | null => {
   if (normalized.includes('报税') || normalized.includes('材料')) {
     return {
       recommendedPriority: 'medium',
-      dueDateHint: '建议尽早设定具体提交时刻，避免在截止日最后时段处理。',
+      dueDateHint: '建议尽早设置截止日期，避免临近截止日资料不齐。',
       splitIdeas: ['整理票据', '核对收入支出', '准备申报信息', '最终复查并提交'],
+    };
+  }
+
+  if (normalized.length <= 4) {
+    return {
+      recommendedPriority: 'medium',
+      dueDateHint: '任务较模糊，建议补充截止日期与成功标准。',
+      splitIdeas: ['明确目标结果', '拆分 2-3 个可执行步骤', '为每个步骤设置完成标记'],
     };
   }
 
   return {
     recommendedPriority: 'medium',
-    dueDateHint: '建议补充可执行时间点（例如本周五 16:00）以增强可执行性。',
+    dueDateHint: '建议根据任务影响范围决定是否设置截止日期。',
     splitIdeas: ['明确产出物', '拆分关键步骤', '安排执行时间段'],
   };
 };

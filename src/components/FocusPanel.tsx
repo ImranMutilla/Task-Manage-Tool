@@ -1,5 +1,5 @@
 import { Task } from '../types/task';
-import { formatDueDateTime, isOverdue, priorityLabel, statusLabel } from '../utils/taskUtils';
+import { isOverdue, priorityLabel, statusLabel } from '../utils/taskUtils';
 
 interface FocusPanelProps {
   task: Task | null;
@@ -7,24 +7,25 @@ interface FocusPanelProps {
 
 const FocusPanel = ({ task }: FocusPanelProps) => {
   return (
-    <section className="rounded-3xl border border-black/5 bg-white/85 p-5 shadow-[0_30px_70px_-50px_rgba(15,23,42,0.45)] backdrop-blur">
-      <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Today&apos;s Focus</p>
-      {task ? (
-        <div className="mt-3 space-y-3">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{task.title}</h2>
-            {task.description && <p className="mt-1 text-sm text-slate-500">{task.description}</p>}
-          </div>
+    <section className="rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-600 to-violet-600 p-5 text-white shadow-sm">
+      <h2 className="text-lg font-semibold">Today&apos;s Focus</h2>
+      <p className="text-sm text-indigo-100">系统已为你挑选当前最该优先处理的任务。</p>
 
-          <div className="flex flex-wrap gap-2 text-xs text-slate-600">
-            <span className="rounded-full bg-slate-100 px-3 py-1.5">Priority · {priorityLabel[task.priority]}</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5">Status · {statusLabel[task.status]}</span>
-            <span className="rounded-full bg-slate-100 px-3 py-1.5">Due · {formatDueDateTime(task.dueDateTime)}</span>
-            {isOverdue(task) && <span className="rounded-full bg-rose-50 px-3 py-1.5 text-rose-700">Overdue</span>}
+      {task ? (
+        <div className="mt-3 rounded-xl bg-white/10 p-4 text-sm backdrop-blur-sm">
+          <p className="text-base font-semibold">{task.title}</p>
+          {task.description && <p className="mt-1 text-indigo-50">{task.description}</p>}
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-white/20 px-2 py-1">优先级：{priorityLabel[task.priority]}</span>
+            <span className="rounded-full bg-white/20 px-2 py-1">状态：{statusLabel[task.status]}</span>
+            <span className="rounded-full bg-white/20 px-2 py-1">
+              截止：{task.dueDate ? task.dueDate : '未设置'}
+            </span>
+            {isOverdue(task) && <span className="rounded-full bg-rose-500 px-2 py-1">已逾期</span>}
           </div>
         </div>
       ) : (
-        <p className="mt-3 text-sm text-slate-500">All clear for now. No active tasks require attention.</p>
+        <div className="mt-3 rounded-xl bg-white/10 p-4 text-sm text-indigo-50">当前没有待处理任务，继续保持！</div>
       )}
     </section>
   );

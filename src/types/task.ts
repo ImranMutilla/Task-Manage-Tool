@@ -6,8 +6,6 @@ export interface Task {
   title: string;
   description?: string;
   priority: TaskPriority;
-  dueDateTime?: string;
-  /** @deprecated legacy compatibility field */
   dueDate?: string;
   status: TaskStatus;
   tags: string[];
@@ -25,14 +23,5 @@ export interface TaskFilters {
   search: string;
   status: 'all' | TaskStatus;
   priority: 'all' | TaskPriority;
-  sortBy: 'dueDateTime' | 'createdAt';
-}
-
-export interface TaskInput {
-  title: string;
-  description?: string;
-  priority: TaskPriority;
-  dueDateTime?: string;
-  status: TaskStatus;
-  tags: string[];
+  sortBy: 'dueDate' | 'createdAt';
 }
