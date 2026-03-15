@@ -32,25 +32,17 @@ const App = () => {
   const [modalState, setModalState] = useState<ModalState>({ open: false, mode: 'create' });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  useEffect(() => saveTasks(tasks), [tasks]);
+  useEffect(() => saveProjects(projects), [projects]);
   useEffect(() => {
-    saveTasks(tasks);
-  }, [tasks]);
-
-  useEffect(() => {
-    saveProjects(projects);
-  }, [projects]);
-
-  useEffect(() => {
-    if (!projects.length) {
-      setProjects(DEFAULT_PROJECTS);
-    }
+    if (!projects.length) setProjects(DEFAULT_PROJECTS);
   }, [projects]);
 
   const tags = useMemo(() => collectTags(tasks), [tasks]);
   const visibleTasks = useMemo(() => getVisibleTasks(tasks, filters, activeView), [tasks, filters, activeView]);
   const focusTasks = useMemo(() => getFocusTasks(tasks), [tasks]);
-
   const countProject = useMemo(() => countsByProject(tasks), [tasks]);
+
   const counts = useMemo(
     () => ({
       inbox: tasks.filter((task) => task.projectId === 'inbox' && task.status !== 'done').length,
@@ -63,12 +55,10 @@ const App = () => {
   );
 
   const projectMap = useMemo(() => new Map(projects.map((project) => [project.id, project])), [projects]);
-
   const closeModal = () => setModalState({ open: false, mode: 'create' });
 
   const onCreate = (input: TaskInput) => {
-    const next = buildTaskFromInput(input, null, projectMap);
-    setTasks((prev) => [next, ...prev]);
+    setTasks((prev) => [buildTaskFromInput(input, null, projectMap), ...prev]);
     closeModal();
   };
 
@@ -85,26 +75,23 @@ const App = () => {
     setTasks((prev) =>
       prev.map((item) =>
         item.id === task.id
-          ? {
-              ...item,
-              status: done ? 'todo' : 'done',
-              completedAt: done ? undefined : now,
-              updatedAt: now,
-            }
+          ? { ...item, status: done ? 'todo' : 'done', completedAt: done ? undefined : now, updatedAt: now }
           : item,
       ),
     );
   };
 
-  const deleteTask = (id: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== id));
+  const deleteTask = (id: string) => setTasks((prev) => prev.filter((task) => task.id !== id));
+  const duplicateTask = (task: Task) => {
+    const now = new Date().toISOString();
+    setTasks((prev) => [{ ...task, id: crypto.randomUUID(), createdAt: now, updatedAt: now, completedAt: undefined, status: 'todo' }, ...prev]);
   };
 
   const subtitle =
     activeView.type === 'inbox'
-      ? 'Capture tasks quickly and organize later.'
+      ? 'No tasks in Inbox. Capture something to get started.'
       : activeView.type === 'today'
-        ? 'Focus on the tasks that matter today.'
+        ? 'Nothing due today? Enjoy the calm.'
         : activeView.type === 'upcoming'
           ? 'Plan what is next by date and time.'
           : activeView.type === 'completed'
@@ -131,12 +118,7 @@ const App = () => {
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <TopBar
-            title={activeView.label}
-            subtitle={subtitle}
-            onNewTask={() => setModalState({ open: true, mode: 'create' })}
-            onOpenSidebar={() => setMobileSidebarOpen(true)}
-          />
+          <TopBar title={activeView.label} subtitle={subtitle} onNewTask={() => setModalState({ open: true, mode: 'create' })} onOpenSidebar={() => setMobileSidebarOpen(true)} />
 
           <main className="mx-auto w-full max-w-5xl space-y-3 p-4 md:p-6">
             {(activeView.type === 'today' || activeView.type === 'inbox') && <FocusPanel tasks={focusTasks} />}
@@ -146,43 +128,24 @@ const App = () => {
               <div className="space-y-4">
                 {upcomingGroups.length === 0 && (
                   <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
-                    No upcoming tasks. You can schedule one from the add-task panel.
+                    No upcoming tasks. Add one from the task composer.
                   </section>
                 )}
                 {upcomingGroups.map((group) => (
                   <div key={group.label}>
                     <h3 className="mb-2 px-1 text-sm font-medium text-slate-600">{group.label}</h3>
-                    <TaskList
-                      tasks={group.items}
-                      emptyMessage=""
-                      onToggleDone={toggleDone}
-                      onEdit={(task) => setModalState({ open: true, mode: 'edit', task })}
-                      onDelete={deleteTask}
-                    />
+                    <TaskList tasks={group.items} emptyMessage="" onToggleDone={toggleDone} onEdit={(task) => setModalState({ open: true, mode: 'edit', task })} onDelete={deleteTask} onDuplicate={duplicateTask} />
                   </div>
                 ))}
               </div>
             ) : (
-              <TaskList
-                tasks={visibleTasks}
-                emptyMessage="No tasks in this view. Add a task to get started."
-                onToggleDone={toggleDone}
-                onEdit={(task) => setModalState({ open: true, mode: 'edit', task })}
-                onDelete={deleteTask}
-              />
+              <TaskList tasks={visibleTasks} emptyMessage="No tasks in this view. Add a task to get started." onToggleDone={toggleDone} onEdit={(task) => setModalState({ open: true, mode: 'edit', task })} onDelete={deleteTask} onDuplicate={duplicateTask} />
             )}
           </main>
         </div>
       </div>
 
-      <TaskModal
-        open={modalState.open}
-        mode={modalState.mode}
-        projects={projects}
-        initialTask={modalState.task}
-        onSubmit={modalState.mode === 'create' ? onCreate : onUpdate}
-        onClose={closeModal}
-      />
+      <TaskModal open={modalState.open} mode={modalState.mode} projects={projects} initialTask={modalState.task} onSubmit={modalState.mode === 'create' ? onCreate : onUpdate} onClose={closeModal} />
     </div>
   );
 };

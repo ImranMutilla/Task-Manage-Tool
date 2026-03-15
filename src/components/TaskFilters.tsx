@@ -22,7 +22,7 @@ const TaskFiltersBar = ({ filters, projects, tags, onChange }: TaskFiltersProps)
           onChange={(event) => onChange({ ...filters, status: event.target.value as TaskFilters['status'] })}
           className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
         >
-          <option value="all">状态</option>
+          <option value="all">Status</option>
           <option value="todo">待办</option>
           <option value="in-progress">进行中</option>
           <option value="done">完成</option>
@@ -32,7 +32,7 @@ const TaskFiltersBar = ({ filters, projects, tags, onChange }: TaskFiltersProps)
           onChange={(event) => onChange({ ...filters, priority: event.target.value as TaskFilters['priority'] })}
           className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
         >
-          <option value="all">优先级</option>
+          <option value="all">Priority</option>
           <option value="p1">P1</option>
           <option value="p2">P2</option>
           <option value="p3">P3</option>
@@ -43,7 +43,7 @@ const TaskFiltersBar = ({ filters, projects, tags, onChange }: TaskFiltersProps)
           onChange={(event) => onChange({ ...filters, projectId: event.target.value })}
           className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
         >
-          <option value="all">项目</option>
+          <option value="all">Project</option>
           {projects.map((project) => (
             <option key={project.id} value={project.id}>
               {project.name}
@@ -55,7 +55,7 @@ const TaskFiltersBar = ({ filters, projects, tags, onChange }: TaskFiltersProps)
           onChange={(event) => onChange({ ...filters, tag: event.target.value })}
           className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
         >
-          <option value="all">标签</option>
+          <option value="all">Tag</option>
           {tags.map((tag) => (
             <option key={tag} value={tag}>
               #{tag}
@@ -63,22 +63,24 @@ const TaskFiltersBar = ({ filters, projects, tags, onChange }: TaskFiltersProps)
           ))}
         </select>
         <select
-          value={filters.overdue}
-          onChange={(event) => onChange({ ...filters, overdue: event.target.value as TaskFilters['overdue'] })}
+          value={filters.dueState}
+          onChange={(event) => onChange({ ...filters, dueState: event.target.value as TaskFilters['dueState'] })}
           className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
         >
-          <option value="all">是否逾期</option>
-          <option value="overdue">仅逾期</option>
+          <option value="all">All</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="overdue">Overdue</option>
+          <option value="no-date">No date</option>
         </select>
         <select
           value={filters.sortBy}
           onChange={(event) => onChange({ ...filters, sortBy: event.target.value as TaskFilters['sortBy'] })}
           className="rounded-lg border border-slate-200 px-2.5 py-2 text-xs"
         >
-          <option value="dueDateTime">截止时间</option>
-          <option value="createdAt">创建时间</option>
-          <option value="updatedAt">更新时间</option>
-          <option value="priority">优先级</option>
+          <option value="dueDateTime">Due date</option>
+          <option value="createdAt">Created time</option>
+          <option value="updatedAt">Updated time</option>
+          <option value="priority">Priority</option>
         </select>
       </div>
     </section>

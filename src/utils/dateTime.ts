@@ -1,89 +1,76 @@
-import { TimeParts } from '../types/task';
+export interface TimeOption {
+  value: string;
+  label: string;
+}
 
-export const MINUTE_OPTIONS: Array<TimeParts['minute']> = ['00', '15', '30', '45'];
-
-export const HOUR_OPTIONS = Array.from({ length: 12 }, (_, index) => String(index + 1));
-
-export const isValidDate = (value?: string): boolean => {
-  if (!value) return false;
-  const parsed = new Date(value);
-  return !Number.isNaN(parsed.getTime());
-};
-
-export const toISODateTime = (date: string, time?: TimeParts): string => {
-  if (!time) {
-    return new Date(`${date}T09:00`).toISOString();
+export const TIME_OPTIONS_15_MIN: TimeOption[] = (() => {
+  const items: TimeOption[] = [{ value: '', label: 'No time' }];
+  for (let hour = 0; hour < 24; hour += 1) {
+    for (const minute of [0, 15, 30, 45]) {
+      const date = new Date();
+      date.setHours(hour, minute, 0, 0);
+      const hh = String(hour).padStart(2, '0');
+      const mm = String(minute).padStart(2, '0');
+      items.push({
+        value: `${hh}:${mm}`,
+        label: new Intl.DateTimeFormat('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true,
+        }).format(date),
+      });
+    }
   }
+  return items;
+})();
 
-  const hour24 =
-    time.period === 'AM'
-      ? time.hour === '12'
-        ? 0
-        : Number(time.hour)
-      : time.hour === '12'
-        ? 12
-        : Number(time.hour) + 12;
-
-  const hh = String(hour24).padStart(2, '0');
-  return new Date(`${date}T${hh}:${time.minute}`).toISOString();
+export const toISODateTime = (date: string, time?: string): string => {
+  if (!time) return new Date(`${date}T09:00`).toISOString();
+  return new Date(`${date}T${time}`).toISOString();
 };
 
 export const fromISOToDate = (iso?: string): string => {
-  if (!iso || !isValidDate(iso)) return '';
-  return new Date(iso).toISOString().slice(0, 10);
+  if (!iso) return '';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
 };
 
-export const fromISOToTimeParts = (iso?: string): TimeParts | undefined => {
-  if (!iso || !isValidDate(iso)) return undefined;
-  const date = new Date(iso);
-  const hours = date.getHours();
-  const minute = date.getMinutes();
-  const minuteRounded = MINUTE_OPTIONS.includes(String(minute).padStart(2, '0') as TimeParts['minute'])
-    ? (String(minute).padStart(2, '0') as TimeParts['minute'])
-    : '00';
-
-  if (hours === 0) return { hour: '12', minute: minuteRounded, period: 'AM' };
-  if (hours < 12) return { hour: String(hours), minute: minuteRounded, period: 'AM' };
-  if (hours === 12) return { hour: '12', minute: minuteRounded, period: 'PM' };
-  return { hour: String(hours - 12), minute: minuteRounded, period: 'PM' };
+export const fromISOToTimeValue = (iso?: string): string => {
+  if (!iso) return '';
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${String(parsed.getHours()).padStart(2, '0')}:${String(parsed.getMinutes()).padStart(2, '0')}`;
 };
 
-const isSameDay = (a: Date, b: Date): boolean =>
+const sameDay = (a: Date, b: Date): boolean =>
   a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 
 export const formatTaskDateTime = (iso?: string): string => {
-  if (!iso || !isValidDate(iso)) return 'No time';
+  if (!iso) return 'No date';
   const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return 'Invalid date';
+
   const now = new Date();
-  const tomorrow = new Date();
+  const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
 
-  const timeLabel = new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
+  const hasTime = !(date.getHours() === 9 && date.getMinutes() === 0);
+  const timeLabel = hasTime
+    ? new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date)
+    : '';
 
-  if (isSameDay(date, now)) return `Today at ${timeLabel}`;
-  if (isSameDay(date, tomorrow)) return `Tomorrow at ${timeLabel}`;
+  if (sameDay(date, now)) return hasTime ? `Today · ${timeLabel}` : 'Today';
+  if (sameDay(date, tomorrow)) return hasTime ? `Tomorrow · ${timeLabel}` : 'Tomorrow';
 
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
+  const dayLabel = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date);
+  return hasTime ? `${dayLabel} · ${timeLabel}` : dayLabel;
 };
 
 export const isToday = (iso?: string): boolean => {
-  if (!iso || !isValidDate(iso)) return false;
-  return isSameDay(new Date(iso), new Date());
-};
-
-export const isTomorrow = (iso?: string): boolean => {
-  if (!iso || !isValidDate(iso)) return false;
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return isSameDay(new Date(iso), tomorrow);
+  if (!iso) return false;
+  const date = new Date(iso);
+  return !Number.isNaN(date.getTime()) && sameDay(date, new Date());
 };
 
 export const startOfDay = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate());

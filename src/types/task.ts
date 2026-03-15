@@ -7,6 +7,12 @@ export interface Project {
   isSystem?: boolean;
 }
 
+export interface TagOption {
+  id: string;
+  name: string;
+  colorClass: string;
+}
+
 export interface Task {
   id: string;
   title: string;
@@ -22,7 +28,6 @@ export interface Task {
   completedAt?: string;
   isInInbox: boolean;
   isInToday: boolean;
-  /** legacy compatibility */
   dueDate?: string;
 }
 
@@ -33,6 +38,7 @@ export interface TaskSuggestion {
 }
 
 export type TaskSortBy = 'dueDateTime' | 'createdAt' | 'priority' | 'updatedAt';
+export type DueState = 'all' | 'upcoming' | 'overdue' | 'no-date';
 
 export interface TaskFilters {
   search: string;
@@ -40,7 +46,7 @@ export interface TaskFilters {
   priority: 'all' | TaskPriority;
   projectId: 'all' | string;
   tag: 'all' | string;
-  overdue: 'all' | 'overdue';
+  dueState: DueState;
   sortBy: TaskSortBy;
 }
 
@@ -58,14 +64,8 @@ export interface TaskInput {
   status: TaskStatus;
   priority: TaskPriority;
   dueDate?: string;
-  time?: TimeParts;
+  time?: string;
   projectId?: string;
   tags: string[];
   isInToday: boolean;
-}
-
-export interface TimeParts {
-  hour: string;
-  minute: '00' | '15' | '30' | '45';
-  period: 'AM' | 'PM';
 }

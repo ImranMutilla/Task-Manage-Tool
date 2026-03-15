@@ -1,17 +1,30 @@
 # Smart Task Assistant
 
-Todoist 产品结构思路 + Apple-inspired 简约视觉风格的轻量任务管理工具。
+Todoist 任务管理逻辑 + 简约现代视觉的轻量任务管理系统。
 
-## 本轮升级亮点
+## 本轮成熟化升级
 
-- 左侧导航：Inbox / Today / Upcoming / Completed + Projects + Tags
-- 任务录入重构：弹层 Task Composer，默认聚焦标题，轻量快速输入
-- 15 分钟时间选择：小时 + 分钟(00/15/30/45) + AM/PM
-- 任务模型增强：`priority(p1-p4)`、`projectId/projectName`、`completedAt`、`isInToday`
-- 视图体系升级：支持项目视图、标签视图、Upcoming 分组（Today/Tomorrow/Next 7 Days/Later）
-- 完成交互优化：列表左侧圆形勾选按钮一键完成/恢复
-- 筛选与排序增强：状态、优先级、项目、标签、逾期；按截止/创建/更新/优先级排序
-- 本地存储兼容迁移：旧 `dueDate` 与 `high/medium/low` 优先级自动兼容
+- ✅ Add Task 弹窗重构：标题优先、描述弱化、统一工具条（Date / Time / Priority / Project / Tags）
+- ✅ 时间选择重构：移除 hour/min/AMPM 技术化输入，改为 15 分钟粒度可读时间列表（含 No time）
+- ✅ 标签体系升级：默认预设标签 + 多选胶囊样式 + 颜色映射
+- ✅ 优先级体系升级：P1 Critical / P2 High / P3 Medium / P4 Low + 颜色语义
+- ✅ 任务项信息层级优化：标题 > 时间 > 项目/标签 > 描述，支持 hover 操作（Edit/Delete/Duplicate）
+- ✅ 筛选栏增强：Status / Priority / Project / Tag / Due state / Sort
+- ✅ Focus 模块成熟化：仅展示 1~3 个关键任务，包含优先级、项目、截止时间
+- ✅ localStorage 兼容：旧 dueDate、旧优先级字段自动迁移
+
+## 标签默认配置（示例）
+
+- Urgent（柔和红）
+- Follow-up（蓝）
+- Meeting（紫）
+- Work（灰蓝）
+- Personal（绿）
+- Study（琥珀）
+- Shopping（橙）
+- Important（红）
+- Low energy（灰）
+- Quick task（青）
 
 ## 运行
 
@@ -25,31 +38,4 @@ npm run dev
 ```bash
 npm run build
 npm run preview
-```
-
-## 文件结构
-
-```text
-src/
-  components/
-    DatePicker.tsx
-    FocusPanel.tsx
-    Sidebar.tsx
-    TaskComposer.tsx
-    TaskFilters.tsx
-    TaskItem.tsx
-    TaskList.tsx
-    TaskModal.tsx
-    TimePicker15Min.tsx
-    TopBar.tsx
-  services/
-    localStorage.ts
-  types/
-    task.ts
-  utils/
-    dateTime.ts
-    taskUtils.ts
-  App.tsx
-  index.css
-  main.tsx
 ```
