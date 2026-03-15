@@ -1,49 +1,58 @@
-import { Task } from '../types/task';
+import { Project, Task, TaskPriority, TaskStatus } from '../types/task';
+import { DEFAULT_PROJECTS } from '../utils/taskUtils';
 
 const TASKS_KEY = 'smart_task_assistant_tasks';
+const PROJECTS_KEY = 'smart_task_assistant_projects';
 
-const normalizeDueDateTime = (task: Task): Task => {
-  if (task.dueDateTime) return task;
-  if (task.dueDate) {
-    return {
-      ...task,
-      dueDateTime: `${task.dueDate}T18:00`,
-    };
-  }
-  return task;
+const mapLegacyPriority = (priority?: string): TaskPriority => {
+  if (priority === 'p1' || priority === 'p2' || priority === 'p3' || priority === 'p4') return priority;
+  if (priority === 'high') return 'p1';
+  if (priority === 'medium') return 'p2';
+  if (priority === 'low') return 'p4';
+  return 'p3';
 };
 
-const normalizeTaskShape = (raw: unknown): Task | null => {
+const normalizeTask = (raw: unknown): Task | null => {
   if (!raw || typeof raw !== 'object') return null;
-  const task = raw as Partial<Task>;
-  if (!task.id || !task.title || !task.priority || !task.status || !task.createdAt || !task.updatedAt) {
-    return null;
-  }
+  const task = raw as Partial<Task> & { dueDate?: string; priority?: string; status?: string };
+  if (!task.id || !task.title) return null;
 
-  return normalizeDueDateTime({
+  const dueDateTime = task.dueDateTime ?? (task.dueDate ? `${task.dueDate}T09:00:00.000Z` : undefined);
+  const projectId = task.projectId ?? (task.isInInbox === false ? 'personal' : 'inbox');
+  const projectName = task.projectName ?? DEFAULT_PROJECTS.find((project) => project.id === projectId)?.name ?? 'Inbox';
+  const status: TaskStatus =
+    task.status === 'todo' || task.status === 'in-progress' || task.status === 'done' ? task.status : 'todo';
+
+  const updatedAt = task.updatedAt ? String(task.updatedAt) : new Date().toISOString();
+  const completedAt = status === 'done' ? task.completedAt ?? updatedAt : undefined;
+
+  return {
     id: String(task.id),
     title: String(task.title),
     description: task.description ? String(task.description) : undefined,
-    priority: task.priority,
-    status: task.status,
-    dueDateTime: task.dueDateTime ? String(task.dueDateTime) : undefined,
-    dueDate: task.dueDate ? String(task.dueDate) : undefined,
+    status,
+    priority: mapLegacyPriority(task.priority),
+    dueDateTime: dueDateTime ? String(dueDateTime) : undefined,
+    projectId,
+    projectName,
     tags: Array.isArray(task.tags) ? task.tags.map(String) : [],
-    createdAt: String(task.createdAt),
-    updatedAt: String(task.updatedAt),
-  });
+    createdAt: task.createdAt ? String(task.createdAt) : updatedAt,
+    updatedAt,
+    completedAt: completedAt ? String(completedAt) : undefined,
+    isInInbox: projectId === 'inbox',
+    isInToday: Boolean(task.isInToday),
+  };
 };
 
 export const loadTasks = (): Task[] => {
   try {
     const raw = localStorage.getItem(TASKS_KEY);
     if (!raw) return [];
+
     const parsed = JSON.parse(raw) as unknown[];
     if (!Array.isArray(parsed)) return [];
 
-    return parsed
-      .map((item) => normalizeTaskShape(item))
-      .filter((task): task is Task => task !== null);
+    return parsed.map((item) => normalizeTask(item)).filter((task): task is Task => task !== null);
   } catch {
     return [];
   }
@@ -51,4 +60,40 @@ export const loadTasks = (): Task[] => {
 
 export const saveTasks = (tasks: Task[]): void => {
   localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+};
+
+const normalizeProject = (raw: unknown): Project | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const project = raw as Partial<Project>;
+  if (!project.id || !project.name) return null;
+  return {
+    id: String(project.id),
+    name: String(project.name),
+    isSystem: Boolean(project.isSystem),
+  };
+};
+
+export const loadProjects = (): Project[] => {
+  try {
+    const raw = localStorage.getItem(PROJECTS_KEY);
+    if (!raw) return DEFAULT_PROJECTS;
+    const parsed = JSON.parse(raw) as unknown[];
+    if (!Array.isArray(parsed)) return DEFAULT_PROJECTS;
+
+    const projects = parsed
+      .map((item) => normalizeProject(item))
+      .filter((project): project is Project => project !== null);
+
+    const map = new Map(projects.map((project) => [project.id, project]));
+    for (const defaultProject of DEFAULT_PROJECTS) {
+      if (!map.has(defaultProject.id)) map.set(defaultProject.id, defaultProject);
+    }
+    return [...map.values()];
+  } catch {
+    return DEFAULT_PROJECTS;
+  }
+};
+
+export const saveProjects = (projects: Project[]): void => {
+  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
 };

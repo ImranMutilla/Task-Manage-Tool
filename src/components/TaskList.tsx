@@ -1,26 +1,27 @@
 import { Task } from '../types/task';
-import TaskCard from './TaskCard';
+import TaskItem from './TaskItem';
 
 interface TaskListProps {
   tasks: Task[];
-  onDelete: (id: string) => void;
-  onStatusChange: (id: string, status: Task['status']) => void;
+  emptyMessage: string;
+  onToggleDone: (task: Task) => void;
   onEdit: (task: Task) => void;
+  onDelete: (id: string) => void;
 }
 
-const TaskList = ({ tasks, onDelete, onStatusChange, onEdit }: TaskListProps) => {
-  if (tasks.length === 0) {
+const TaskList = ({ tasks, emptyMessage, onToggleDone, onEdit, onDelete }: TaskListProps) => {
+  if (!tasks.length) {
     return (
-      <section className="rounded-3xl border border-dashed border-slate-300 bg-white/70 p-10 text-center shadow-[0_20px_50px_-45px_rgba(15,23,42,0.45)]">
-        <p className="text-sm text-slate-500">No matching tasks. Try changing filters or create a new one.</p>
+      <section className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center text-sm text-slate-500">
+        {emptyMessage}
       </section>
     );
   }
 
   return (
-    <section className="grid gap-3.5">
+    <section className="rounded-2xl border border-slate-200 bg-white">
       {tasks.map((task) => (
-        <TaskCard key={task.id} task={task} onDelete={onDelete} onStatusChange={onStatusChange} onEdit={onEdit} />
+        <TaskItem key={task.id} task={task} onToggleDone={onToggleDone} onEdit={onEdit} onDelete={onDelete} />
       ))}
     </section>
   );
