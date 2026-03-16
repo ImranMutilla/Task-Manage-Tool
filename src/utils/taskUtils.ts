@@ -22,7 +22,28 @@ export const DEFAULT_TAGS: TagOption[] = [
   { id: 'quick-task', name: 'Quick task', colorClass: 'bg-cyan-100 text-cyan-700' },
 ];
 
-export const tagColorMap = Object.fromEntries(DEFAULT_TAGS.map((tag) => [tag.name, tag.colorClass]));
+const TAG_COLOR_POOL = [
+  'bg-blue-100 text-blue-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-orange-100 text-orange-700',
+  'bg-violet-100 text-violet-700',
+  'bg-pink-100 text-pink-700',
+  'bg-cyan-100 text-cyan-700',
+  'bg-amber-100 text-amber-700',
+  'bg-zinc-100 text-zinc-700',
+];
+
+export const tagColorMap = Object.fromEntries(DEFAULT_TAGS.map((tag) => [tag.name.toLowerCase(), tag.colorClass]));
+
+export const getTagColorClass = (tagName: string): string => {
+  const normalized = tagName.trim().toLowerCase();
+  if (!normalized) return 'bg-slate-100 text-slate-600';
+  if (tagColorMap[normalized]) return tagColorMap[normalized];
+
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) hash = (hash * 31 + normalized.charCodeAt(i)) >>> 0;
+  return TAG_COLOR_POOL[hash % TAG_COLOR_POOL.length];
+};
 const priorityWeight: Record<TaskPriority, number> = { p1: 4, p2: 3, p3: 2, p4: 1 };
 
 export const priorityMeta: Record<TaskPriority, { label: string; short: string; className: string }> = {

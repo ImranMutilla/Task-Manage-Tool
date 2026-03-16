@@ -1,5 +1,5 @@
 import { Task } from '../types/task';
-import { tagColorMap } from '../utils/taskUtils';
+import { getTagColorClass } from '../utils/taskUtils';
 
 interface TaskMetaRowProps {
   task: Task;
@@ -13,7 +13,7 @@ const TaskMetaRow = ({ task }: TaskMetaRowProps) => {
       {task.parentTaskId && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-500">Subtask</span>}
       {task.repeat !== 'none' && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-slate-500">↻ {task.repeat}</span>}
       {task.tags.map((tag) => (
-        <span key={tag} className={`rounded-full px-1.5 py-0.5 ${tagColorMap[tag] ?? 'bg-slate-100 text-slate-500'} opacity-80`}>
+        <span key={tag} className={`rounded-full px-1.5 py-0.5 ${getTagColorClass(tag)} opacity-80`}>
           {tag}
         </span>
       ))}

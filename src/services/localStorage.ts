@@ -1,5 +1,5 @@
 import { Project, TagOption, Task, TaskPriority, TaskRepeat, TaskStatus } from '../types/task';
-import { DEFAULT_PROJECTS, DEFAULT_TAGS } from '../utils/taskUtils';
+import { DEFAULT_PROJECTS, DEFAULT_TAGS, getTagColorClass } from '../utils/taskUtils';
 
 const TASKS_KEY = 'smart_task_assistant_tasks';
 const PROJECTS_KEY = 'smart_task_assistant_projects';
@@ -106,7 +106,7 @@ const normalizeTag = (raw: unknown): TagOption | null => {
   return {
     id: String(id),
     name: String(name),
-    colorClass: tag.colorClass ? String(tag.colorClass) : defaultTag?.colorClass ?? 'bg-slate-100 text-slate-600',
+    colorClass: tag.colorClass ? String(tag.colorClass) : defaultTag?.colorClass ?? getTagColorClass(String(name)),
   };
 };
 

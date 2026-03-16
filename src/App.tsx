@@ -17,7 +17,7 @@ import {
   buildTaskFromInput,
   countsByProject,
   DEFAULT_PROJECTS,
-  DEFAULT_TAGS,
+  getTagColorClass,
   getToolbarConfig,
   getUpNextTask,
   getViewCounts,
@@ -105,7 +105,7 @@ const App = () => {
         map.set(key, {
           id: slugify(taskTag) || crypto.randomUUID(),
           name: taskTag,
-          colorClass: 'bg-slate-100 text-slate-600',
+          colorClass: getTagColorClass(taskTag),
         });
       }
     }
@@ -268,8 +268,7 @@ const App = () => {
     const name = window.prompt('Tag name');
     if (!name?.trim()) return;
     if (allTagOptions.some((tag) => tag.name.toLowerCase() === name.trim().toLowerCase())) return;
-    const palette = DEFAULT_TAGS.map((tag) => tag.colorClass);
-    const colorClass = palette[tagOptions.length % palette.length] ?? 'bg-slate-100 text-slate-600';
+    const colorClass = getTagColorClass(name.trim());
     const newTag: TagOption = {
       id: slugify(name) || crypto.randomUUID(),
       name: name.trim(),

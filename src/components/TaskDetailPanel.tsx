@@ -1,6 +1,6 @@
 import { Task } from '../types/task';
 import { formatTaskDateTime } from '../utils/dateTime';
-import { priorityMeta, tagColorMap } from '../utils/taskUtils';
+import { getTagColorClass, priorityMeta } from '../utils/taskUtils';
 
 interface TaskDetailPanelProps {
   task?: Task;
@@ -26,7 +26,7 @@ const TaskDetailPanel = ({ task, onClose, onEdit }: TaskDetailPanelProps) => {
           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{task.projectName}</span>
           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{formatTaskDateTime(task.dueDateTime, task.dueHasTime)}</span>
           <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">repeat: {task.repeat}</span>
-          {task.tags.map((tag) => <span key={tag} className={`rounded-full px-2 py-1 text-xs ${tagColorMap[tag] ?? 'bg-slate-100 text-slate-600'}`}>{tag}</span>)}
+          {task.tags.map((tag) => <span key={tag} className={`rounded-full px-2 py-1 text-xs ${getTagColorClass(tag)}`}>{tag}</span>)}
         </div>
         <div><p className="text-xs text-slate-400">Status</p><p>{task.status}</p></div>
         <div><p className="text-xs text-slate-400">Section</p><p>{task.section || '—'}</p></div>
