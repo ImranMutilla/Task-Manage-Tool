@@ -30,7 +30,7 @@ const TAG_COLOR_POOL = [
   'bg-pink-100 text-pink-700',
   'bg-cyan-100 text-cyan-700',
   'bg-amber-100 text-amber-700',
-  'bg-zinc-100 text-zinc-700',
+  'bg-indigo-100 text-indigo-700',
 ];
 
 export const tagColorMap = Object.fromEntries(DEFAULT_TAGS.map((tag) => [tag.name.toLowerCase(), tag.colorClass]));
