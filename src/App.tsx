@@ -461,7 +461,7 @@ const App = () => {
             </div>
 
             {currentViewMode === 'board' ? (
-              <TaskBoard columns={boardColumns} mode={activeView.type === 'upcoming' ? 'horizontal' : 'grid'} enableStatusMenu={activeView.type === 'today' || activeView.type === 'upcoming'} {...sharedListProps} />
+              <TaskBoard columns={boardColumns} enableStatusMenu={activeView.type === 'today' || activeView.type === 'upcoming'} {...sharedListProps} />
             ) : activeView.type === 'today' ? (
               <TodayView
                 {...todaySections}
