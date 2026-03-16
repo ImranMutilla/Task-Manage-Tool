@@ -79,6 +79,12 @@ export const isToday = (iso?: string): boolean => {
 
 export const startOfDay = (date: Date): Date => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
+export const toLocalDateKey = (input: Date | string): string => {
+  const date = typeof input === 'string' ? new Date(input) : input;
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+};
+
 export const getNextRepeatDue = (iso: string, repeat: 'daily' | 'weekday' | 'weekly' | 'monthly'): string => {
   const date = new Date(iso);
   if (repeat === 'daily') date.setDate(date.getDate() + 1);

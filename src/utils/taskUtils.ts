@@ -1,5 +1,5 @@
 import { ActiveView, Project, TagOption, Task, TaskFilters, TaskInput, TaskPriority, TaskRepeat, TaskSortBy, TaskStatus, TaskSuggestion, ViewKey } from '../types/task';
-import { formatDateGroupTitle, isToday, startOfDay, toISODateTime } from './dateTime';
+import { formatDateGroupTitle, isToday, startOfDay, toISODateTime, toLocalDateKey } from './dateTime';
 
 export const DEFAULT_PROJECTS: Project[] = [
   { id: 'inbox', name: 'Inbox', isSystem: true },
@@ -333,10 +333,10 @@ export const groupUpcomingByDate = (tasks: Task[], weekOffset: number): Array<{ 
   for (let i = 0; i < 7; i += 1) {
     const day = new Date(start);
     day.setDate(start.getDate() + i);
-    const key = day.toISOString().slice(0, 10);
+    const key = toLocalDateKey(day);
 
     const dayItems = tasks
-      .filter((task) => task.dueDateTime?.slice(0, 10) === key)
+      .filter((task) => task.dueDateTime && toLocalDateKey(task.dueDateTime) === key)
       .sort((a, b) => {
         const aHasTime = a.dueHasTime ? 1 : 0;
         const bHasTime = b.dueHasTime ? 1 : 0;
