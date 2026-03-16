@@ -85,15 +85,44 @@ export const toLocalDateKey = (input: Date | string): string => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 };
 
+const getLastDayOfMonth = (year: number, monthIndex: number): number => new Date(year, monthIndex + 1, 0).getDate();
+
 export const getNextRepeatDue = (iso: string, repeat: 'daily' | 'weekday' | 'weekly' | 'monthly'): string => {
-  const date = new Date(iso);
-  if (repeat === 'daily') date.setDate(date.getDate() + 1);
+  const source = new Date(iso);
+  if (Number.isNaN(source.getTime())) return iso;
+
+  const next = new Date(source);
+
+  if (repeat === 'daily') {
+    next.setDate(next.getDate() + 1);
+    return next.toISOString();
+  }
+
   if (repeat === 'weekday') {
     do {
-      date.setDate(date.getDate() + 1);
-    } while ([0, 6].includes(date.getDay()));
+      next.setDate(next.getDate() + 1);
+    } while (next.getDay() === 0 || next.getDay() === 6);
+    return next.toISOString();
   }
-  if (repeat === 'weekly') date.setDate(date.getDate() + 7);
-  if (repeat === 'monthly') date.setMonth(date.getMonth() + 1);
-  return date.toISOString();
+
+  if (repeat === 'weekly') {
+    next.setDate(next.getDate() + 7);
+    return next.toISOString();
+  }
+
+  const year = source.getFullYear();
+  const month = source.getMonth();
+  const day = source.getDate();
+  const hours = source.getHours();
+  const minutes = source.getMinutes();
+  const seconds = source.getSeconds();
+  const milliseconds = source.getMilliseconds();
+
+  const targetMonth = month + 1;
+  const targetYear = year + Math.floor(targetMonth / 12);
+  const normalizedTargetMonth = targetMonth % 12;
+  const clampedDay = Math.min(day, getLastDayOfMonth(targetYear, normalizedTargetMonth));
+
+  const monthlyNext = new Date(targetYear, normalizedTargetMonth, clampedDay, hours, minutes, seconds, milliseconds);
+  return monthlyNext.toISOString();
 };

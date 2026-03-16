@@ -196,7 +196,17 @@ const App = () => {
 
       if (status === 'done' && task.status !== 'done' && task.repeat !== 'none' && task.dueDateTime) {
         const repeatDue = getNextRepeatDue(task.dueDateTime, task.repeat);
-        updated.unshift({ ...task, id: crypto.randomUUID(), status: 'todo', completedAt: undefined, createdAt: now, updatedAt: now, dueDateTime: repeatDue });
+        if (repeatDue && repeatDue !== task.dueDateTime) {
+          updated.unshift({
+            ...task,
+            id: crypto.randomUUID(),
+            status: 'todo',
+            completedAt: undefined,
+            createdAt: now,
+            updatedAt: now,
+            dueDateTime: repeatDue,
+          });
+        }
       }
 
       return updated;
